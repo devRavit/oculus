@@ -1,0 +1,9 @@
+## Interface: 120000
+## Title: Oculus
+## Notes: PvP Addon Suite - Core Module
+## Author: RAVIT
+## Version: 0.1.0
+## SavedVariables: OculusDB
+## IconTexture: Interface\Icons\INV_Misc_Eye_01
+
+Core.lua
