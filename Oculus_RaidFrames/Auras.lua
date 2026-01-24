@@ -116,14 +116,25 @@ function Auras:ApplySettings(Frame)
     if not DB or not DB.Enabled then return end
 
     local Unit = Frame.unit
+    local Spacing = 1
 
     -- Apply buff settings
     if Frame.buffFrames then
         local BuffSize = DB.BuffSize or 20
+        local ShownIndex = 0
 
         for i, Buff in ipairs(Frame.buffFrames) do
             if Buff:IsShown() then
+                ShownIndex = ShownIndex + 1
                 Buff:SetSize(BuffSize, BuffSize)
+
+                -- Reposition based on shown index
+                Buff:ClearAllPoints()
+                if ShownIndex == 1 then
+                    Buff:SetPoint("TOPRIGHT", Frame, "TOPRIGHT", -2, -2)
+                else
+                    Buff:SetPoint("RIGHT", Frame.buffFrames[i - 1], "LEFT", -Spacing, 0)
+                end
 
                 -- Get aura info for timer
                 if Buff.auraInstanceID then
@@ -143,10 +154,20 @@ function Auras:ApplySettings(Frame)
     -- Apply debuff settings
     if Frame.debuffFrames then
         local DebuffSize = DB.DebuffSize or 24
+        local ShownIndex = 0
 
         for i, Debuff in ipairs(Frame.debuffFrames) do
             if Debuff:IsShown() then
+                ShownIndex = ShownIndex + 1
                 Debuff:SetSize(DebuffSize, DebuffSize)
+
+                -- Reposition based on shown index
+                Debuff:ClearAllPoints()
+                if ShownIndex == 1 then
+                    Debuff:SetPoint("BOTTOMLEFT", Frame, "BOTTOMLEFT", 2, 2)
+                else
+                    Debuff:SetPoint("LEFT", Frame.debuffFrames[i - 1], "RIGHT", Spacing, 0)
+                end
 
                 -- Get aura info for timer
                 if Debuff.auraInstanceID then
