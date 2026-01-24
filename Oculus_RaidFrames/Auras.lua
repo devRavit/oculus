@@ -24,74 +24,26 @@ function Auras:ApplySettings(Frame)
     local DB = GetDB()
     if not DB or not DB.Enabled then return end
 
-    -- Apply buff settings
+    -- Apply buff settings (only resize, don't force show/hide)
     if Frame.buffFrames then
         local BuffSize = DB.BuffSize or 20
-        local MaxBuffs = DB.MaxBuffs or 3
-        local BuffRows = DB.BuffRows or 1
-        local BuffsPerRow = math.ceil(MaxBuffs / BuffRows)
 
         for i, Buff in ipairs(Frame.buffFrames) do
-            if i <= MaxBuffs then
+            -- Only resize if frame is shown (has active aura)
+            if Buff:IsShown() then
                 Buff:SetSize(BuffSize, BuffSize)
-
-                -- Position based on row
-                local Row = math.ceil(i / BuffsPerRow)
-                local Col = ((i - 1) % BuffsPerRow) + 1
-
-                Buff:ClearAllPoints()
-                if i == 1 then
-                    Buff:SetPoint("TOPRIGHT", Frame, "TOPRIGHT", -2, -2)
-                else
-                    local PrevInRow = Frame.buffFrames[i - 1]
-                    if Col == 1 then
-                        -- First in new row
-                        local FirstInPrevRow = Frame.buffFrames[(Row - 2) * BuffsPerRow + 1]
-                        Buff:SetPoint("TOPRIGHT", FirstInPrevRow, "BOTTOMRIGHT", 0, -1)
-                    else
-                        Buff:SetPoint("RIGHT", PrevInRow, "LEFT", -1, 0)
-                    end
-                end
-
-                Buff:Show()
-            else
-                Buff:Hide()
             end
         end
     end
 
-    -- Apply debuff settings
+    -- Apply debuff settings (only resize, don't force show/hide)
     if Frame.debuffFrames then
         local DebuffSize = DB.DebuffSize or 24
-        local MaxDebuffs = DB.MaxDebuffs or 3
-        local DebuffRows = DB.DebuffRows or 1
-        local DebuffsPerRow = math.ceil(MaxDebuffs / DebuffRows)
 
         for i, Debuff in ipairs(Frame.debuffFrames) do
-            if i <= MaxDebuffs then
+            -- Only resize if frame is shown (has active aura)
+            if Debuff:IsShown() then
                 Debuff:SetSize(DebuffSize, DebuffSize)
-
-                -- Position based on row
-                local Row = math.ceil(i / DebuffsPerRow)
-                local Col = ((i - 1) % DebuffsPerRow) + 1
-
-                Debuff:ClearAllPoints()
-                if i == 1 then
-                    Debuff:SetPoint("BOTTOMLEFT", Frame, "BOTTOMLEFT", 2, 2)
-                else
-                    local PrevInRow = Frame.debuffFrames[i - 1]
-                    if Col == 1 then
-                        -- First in new row
-                        local FirstInPrevRow = Frame.debuffFrames[(Row - 2) * DebuffsPerRow + 1]
-                        Debuff:SetPoint("BOTTOMLEFT", FirstInPrevRow, "TOPLEFT", 0, 1)
-                    else
-                        Debuff:SetPoint("LEFT", PrevInRow, "RIGHT", 1, 0)
-                    end
-                end
-
-                Debuff:Show()
-            else
-                Debuff:Hide()
             end
         end
     end
