@@ -30,42 +30,40 @@ local function CreateMainPanel()
     LangTitle:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -24)
     LangTitle:SetText(L["Language"])
 
-    -- Language Buttons
-    local LangBtnEN = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    LangBtnEN:SetPoint("TOPLEFT", LangTitle, "BOTTOMLEFT", 0, -8)
-    LangBtnEN:SetSize(100, 24)
-    LangBtnEN:SetText("English")
-    LangBtnEN:SetScript("OnClick", function()
-        Oculus:SetLanguage("enUS")
-        print("|cFF00FF00[Oculus]|r " .. L["Language Changed"])
-    end)
+    -- Language Dropdown
+    local LangDropdown = CreateFrame("Frame", "OculusLanguageDropdown", Panel, "UIDropDownMenuTemplate")
+    LangDropdown:SetPoint("TOPLEFT", LangTitle, "BOTTOMLEFT", -16, -4)
 
-    local LangBtnKR = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    LangBtnKR:SetPoint("LEFT", LangBtnEN, "RIGHT", 8, 0)
-    LangBtnKR:SetSize(100, 24)
-    LangBtnKR:SetText("한국어")
-    LangBtnKR:SetScript("OnClick", function()
-        Oculus:SetLanguage("koKR")
-        print("|cFF00FF00[Oculus]|r " .. L["Language Changed"])
-    end)
-
-    -- Highlight current language
-    local function UpdateLangButtons()
-        local CurrentLang = Oculus:GetLanguage()
-        if CurrentLang == "enUS" then
-            LangBtnEN:SetEnabled(false)
-            LangBtnKR:SetEnabled(true)
-        else
-            LangBtnEN:SetEnabled(true)
-            LangBtnKR:SetEnabled(false)
+    local function LangDropdown_OnClick(Self, Arg1)
+        if Arg1 ~= Oculus:GetLanguage() then
+            Oculus:SetLanguage(Arg1)
+            UIDropDownMenu_SetText(LangDropdown, Oculus.Languages[Arg1])
+            -- Show reload confirmation
+            StaticPopup_Show("OCULUS_RELOAD_CONFIRM")
         end
     end
 
-    Panel:SetScript("OnShow", UpdateLangButtons)
+    local function LangDropdown_Initialize(Self, Level)
+        local Info = UIDropDownMenu_CreateInfo()
+        for LangCode, LangName in pairs(Oculus.Languages) do
+            Info.text = LangName
+            Info.arg1 = LangCode
+            Info.func = LangDropdown_OnClick
+            Info.checked = (LangCode == Oculus:GetLanguage())
+            UIDropDownMenu_AddButton(Info, Level)
+        end
+    end
+
+    UIDropDownMenu_SetWidth(LangDropdown, 120)
+    UIDropDownMenu_Initialize(LangDropdown, LangDropdown_Initialize)
+
+    Panel:SetScript("OnShow", function()
+        UIDropDownMenu_SetText(LangDropdown, Oculus.Languages[Oculus:GetLanguage()])
+    end)
 
     -- Profile Section
     local ProfileTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    ProfileTitle:SetPoint("TOPLEFT", LangBtnEN, "BOTTOMLEFT", 0, -24)
+    ProfileTitle:SetPoint("TOPLEFT", LangDropdown, "BOTTOMLEFT", 16, -16)
     ProfileTitle:SetText(L["Profile"])
 
     -- Export Button
@@ -359,6 +357,20 @@ function Oculus:OpenSettings()
         InterfaceOptionsFrame_OpenToCategory(self.SettingsPanel)
     end
 end
+
+-- Reload Confirmation Dialog
+StaticPopupDialogs["OCULUS_RELOAD_CONFIRM"] = {
+    text = L["Reload Confirm"],
+    button1 = L["Reload"],
+    button2 = L["Later"],
+    OnAccept = function()
+        ReloadUI()
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
 
 -- Initialize on ADDON_LOADED
 local Frame = CreateFrame("Frame")
