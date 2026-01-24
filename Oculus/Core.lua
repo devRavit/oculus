@@ -96,9 +96,23 @@ SlashCmdList["OCULUS"] = function(Msg)
     local Command, Arg = Msg:match("^(%S*)%s*(.-)$")
     Command = Command:lower()
 
-    if Command == "" or Command == "help" then
+    if Command == "" or Command == "config" or Command == "options" then
+        if Oculus.OpenSettings then
+            Oculus:OpenSettings()
+        else
+            print("|cFF00FF00[Oculus]|r Commands:")
+            print("  /oculus - Open settings")
+            print("  /oculus enable <module> - Enable module")
+            print("  /oculus disable <module> - Disable module")
+            print("  /oculus status - Show module status")
+            print("  /oculus test - Test mode (preview)")
+            print("  /oculus version - Show version")
+        end
+        return
+
+    elseif Command == "help" then
         print("|cFF00FF00[Oculus]|r Commands:")
-        print("  /oculus - Show this help")
+        print("  /oculus - Open settings")
         print("  /oculus enable <module> - Enable module")
         print("  /oculus disable <module> - Disable module")
         print("  /oculus status - Show module status")

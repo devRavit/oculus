@@ -7,3 +7,4 @@
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
 Core.lua
+Config.lua
