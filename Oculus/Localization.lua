@@ -72,10 +72,10 @@ Locales["enUS"] = {
     -- Settings Note
     ["Settings Note"] = "Module-specific settings will appear here when the module is loaded.",
 
-    -- Reload Dialog
-    ["Reload Confirm"] = "Language has been changed.\nReload UI to apply?",
-    ["Reload"] = "Reload",
-    ["Later"] = "Later",
+    -- Language Confirm Dialog
+    ["Language Confirm"] = "Change language and reload UI?",
+    ["Yes"] = "Yes",
+    ["No"] = "No",
 }
 
 -- Korean
@@ -136,10 +136,10 @@ Locales["koKR"] = {
     -- Settings Note
     ["Settings Note"] = "모듈이 로드되면 모듈별 설정이 여기에 표시됩니다.",
 
-    -- Reload Dialog
-    ["Reload Confirm"] = "언어가 변경되었습니다.\nUI를 다시 불러올까요?",
-    ["Reload"] = "다시 불러오기",
-    ["Later"] = "나중에",
+    -- Language Confirm Dialog
+    ["Language Confirm"] = "언어를 변경하고 UI를 다시 불러올까요?",
+    ["Yes"] = "예",
+    ["No"] = "아니오",
 }
 
 -- Add missing keys to English
