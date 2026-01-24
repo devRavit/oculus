@@ -133,7 +133,20 @@ local function CreateSubPanel(Name, LabelKey, DescKey)
     Panel.EnableCheckbox = EnableCB
 
     EnableCB:SetScript("OnShow", function(Self)
-        Self:SetChecked(Oculus.DB.EnabledModules and Oculus.DB.EnabledModules[Name])
+        -- Ensure DB is initialized
+        if not Oculus.DB or not next(Oculus.DB) then
+            Oculus.DB = OculusDB or {}
+        end
+        if not Oculus.DB.EnabledModules then
+            Oculus.DB.EnabledModules = {}
+        end
+        -- Default to true if not explicitly set to false
+        local IsEnabled = Oculus.DB.EnabledModules[Name]
+        if IsEnabled == nil then
+            IsEnabled = true  -- Default enabled
+            Oculus.DB.EnabledModules[Name] = true
+        end
+        Self:SetChecked(IsEnabled)
     end)
 
     EnableCB:SetScript("OnClick", function(Self)
