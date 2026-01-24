@@ -105,11 +105,15 @@ local function CreateMainPanel()
     return Panel
 end
 
+-- Store module panels for external access
+Oculus.ModulePanels = {}
+
 -- Create Sub Panel for each module
 local function CreateSubPanel(Name, LabelKey, DescKey)
     local Panel = CreateFrame("Frame")
     Panel.name = L[LabelKey]
     Panel.parent = "Oculus"
+    Panel.moduleName = Name
 
     -- Title
     local Title = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -126,6 +130,7 @@ local function CreateSubPanel(Name, LabelKey, DescKey)
     local EnableCB = CreateFrame("CheckButton", "OculusEnable" .. Name, Panel, "InterfaceOptionsCheckButtonTemplate")
     EnableCB:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -16)
     EnableCB.Text:SetText(L["Enable"] .. " " .. L[LabelKey])
+    Panel.EnableCheckbox = EnableCB
 
     EnableCB:SetScript("OnShow", function(Self)
         Self:SetChecked(Oculus.DB.EnabledModules and Oculus.DB.EnabledModules[Name])
@@ -150,10 +155,12 @@ local function CreateSubPanel(Name, LabelKey, DescKey)
         end
     end)
 
-    -- Placeholder for module-specific settings
-    local SettingsNote = Panel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
-    SettingsNote:SetPoint("TOPLEFT", EnableCB, "BOTTOMLEFT", 0, -16)
-    SettingsNote:SetText(L["Settings Note"])
+    -- Content anchor for modules to add settings
+    Panel.ContentAnchor = EnableCB
+    Panel.YOffset = -50
+
+    -- Store reference
+    Oculus.ModulePanels[Name] = Panel
 
     return Panel
 end
