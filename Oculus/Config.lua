@@ -35,11 +35,13 @@ local function CreateMainPanel()
     LangDropdown:SetPoint("TOPLEFT", LangTitle, "BOTTOMLEFT", -16, -4)
 
     local function LangDropdown_OnClick(Self, Arg1)
-        if Arg1 ~= Oculus:GetLanguage() then
-            Oculus:SetLanguage(Arg1)
-            UIDropDownMenu_SetText(LangDropdown, Oculus.Languages[Arg1])
-            -- Show reload confirmation
-            StaticPopup_Show("OCULUS_RELOAD_CONFIRM")
+        local CurrentLang = Oculus:GetLanguage()
+        if Arg1 ~= CurrentLang then
+            -- Store pending change for confirmation
+            Oculus.PendingLanguage = Arg1
+            Oculus.PreviousLanguage = CurrentLang
+            -- Show confirmation dialog
+            StaticPopup_Show("OCULUS_LANGUAGE_CONFIRM")
         end
     end
 
@@ -358,17 +360,32 @@ function Oculus:OpenSettings()
     end
 end
 
--- Reload Confirmation Dialog
-StaticPopupDialogs["OCULUS_RELOAD_CONFIRM"] = {
-    text = L["Reload Confirm"],
-    button1 = L["Reload"],
-    button2 = L["Later"],
+-- Language Change Confirmation Dialog
+StaticPopupDialogs["OCULUS_LANGUAGE_CONFIRM"] = {
+    text = L["Language Confirm"],
+    button1 = L["Yes"],
+    button2 = L["No"],
     OnAccept = function()
-        ReloadUI()
+        -- Apply language change and reload
+        if Oculus.PendingLanguage then
+            Oculus:SetLanguage(Oculus.PendingLanguage)
+            Oculus.PendingLanguage = nil
+            Oculus.PreviousLanguage = nil
+            ReloadUI()
+        end
+    end,
+    OnCancel = function()
+        -- Rollback - reset dropdown to previous language
+        Oculus.PendingLanguage = nil
+        Oculus.PreviousLanguage = nil
+        -- Refresh dropdown display
+        if OculusLanguageDropdown then
+            UIDropDownMenu_SetText(OculusLanguageDropdown, Oculus.Languages[Oculus:GetLanguage()])
+        end
     end,
     timeout = 0,
     whileDead = true,
-    hideOnEscape = true,
+    hideOnEscape = false,
     preferredIndex = 3,
 }
 
