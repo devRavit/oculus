@@ -1,0 +1,11 @@
+## Interface: 120000
+## Title: Oculus - RaidFrames
+## Notes: Raid/Party Frame Enhancements
+## Author: RAVIT
+## Version: 0.1.0
+## Dependencies: Oculus
+## SavedVariables: Oculus_RaidFramesDB
+## IconTexture: Interface\Icons\INV_Misc_Eye_01
+
+RaidFrames.lua
+Auras.lua
