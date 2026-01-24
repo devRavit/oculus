@@ -115,6 +115,11 @@ end
 
 -- Profile Export Dialog (Alert Style)
 function Oculus:ShowExportDialog()
+    -- Hide Import dialog if open
+    if self.ImportDialog then
+        self.ImportDialog:Hide()
+    end
+
     if self.ExportDialog then
         -- Update content
         local Encoded = Oculus.Utils.ExportProfile(OculusDB or {})
@@ -185,6 +190,11 @@ end
 
 -- Profile Import Dialog
 function Oculus:ShowImportDialog()
+    -- Hide Export dialog if open
+    if self.ExportDialog then
+        self.ExportDialog:Hide()
+    end
+
     if self.ImportDialog then
         self.ImportDialog:Show()
         return
