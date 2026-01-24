@@ -2,6 +2,7 @@
 -- Settings UI for ESC > AddOns menu
 
 local AddonName, Oculus = ...
+local L = Oculus.L
 
 -- Create Main Settings Panel
 local function CreateMainPanel()
@@ -21,19 +22,57 @@ local function CreateMainPanel()
     -- Description
     local Desc = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     Desc:SetPoint("TOPLEFT", Version, "BOTTOMLEFT", 0, -16)
-    Desc:SetText("PvP 전투에서 모든 것을 볼 수 있게 해주는 애드온")
+    Desc:SetText(L["Addon Description"])
     Desc:SetJustifyH("LEFT")
+
+    -- Language Section
+    local LangTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    LangTitle:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -24)
+    LangTitle:SetText(L["Language"])
+
+    -- Language Buttons
+    local LangBtnEN = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
+    LangBtnEN:SetPoint("TOPLEFT", LangTitle, "BOTTOMLEFT", 0, -8)
+    LangBtnEN:SetSize(100, 24)
+    LangBtnEN:SetText("English")
+    LangBtnEN:SetScript("OnClick", function()
+        Oculus:SetLanguage("enUS")
+        print("|cFF00FF00[Oculus]|r " .. L["Language Changed"])
+    end)
+
+    local LangBtnKR = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
+    LangBtnKR:SetPoint("LEFT", LangBtnEN, "RIGHT", 8, 0)
+    LangBtnKR:SetSize(100, 24)
+    LangBtnKR:SetText("한국어")
+    LangBtnKR:SetScript("OnClick", function()
+        Oculus:SetLanguage("koKR")
+        print("|cFF00FF00[Oculus]|r " .. L["Language Changed"])
+    end)
+
+    -- Highlight current language
+    local function UpdateLangButtons()
+        local CurrentLang = Oculus:GetLanguage()
+        if CurrentLang == "enUS" then
+            LangBtnEN:SetEnabled(false)
+            LangBtnKR:SetEnabled(true)
+        else
+            LangBtnEN:SetEnabled(true)
+            LangBtnKR:SetEnabled(false)
+        end
+    end
+
+    Panel:SetScript("OnShow", UpdateLangButtons)
 
     -- Profile Section
     local ProfileTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    ProfileTitle:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -24)
-    ProfileTitle:SetText("Profile")
+    ProfileTitle:SetPoint("TOPLEFT", LangBtnEN, "BOTTOMLEFT", 0, -24)
+    ProfileTitle:SetText(L["Profile"])
 
     -- Export Button
     local ExportBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
     ExportBtn:SetPoint("TOPLEFT", ProfileTitle, "BOTTOMLEFT", 0, -8)
     ExportBtn:SetSize(100, 24)
-    ExportBtn:SetText("Export")
+    ExportBtn:SetText(L["Export"])
     ExportBtn:SetScript("OnClick", function()
         Oculus:ShowExportDialog()
     end)
@@ -42,7 +81,7 @@ local function CreateMainPanel()
     local ImportBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
     ImportBtn:SetPoint("LEFT", ExportBtn, "RIGHT", 8, 0)
     ImportBtn:SetSize(100, 24)
-    ImportBtn:SetText("Import")
+    ImportBtn:SetText(L["Import"])
     ImportBtn:SetScript("OnClick", function()
         Oculus:ShowImportDialog()
     end)
@@ -50,37 +89,43 @@ local function CreateMainPanel()
     -- Commands Section
     local CmdTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     CmdTitle:SetPoint("TOPLEFT", ExportBtn, "BOTTOMLEFT", 0, -24)
-    CmdTitle:SetText("Commands")
+    CmdTitle:SetText(L["Commands"])
 
     local CmdList = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     CmdList:SetPoint("TOPLEFT", CmdTitle, "BOTTOMLEFT", 0, -8)
-    CmdList:SetText("/oculus - Open settings\n/oculus status - Module status\n/oculus test - Test mode\n/oculus export - Export profile\n/oculus import - Import profile")
+    CmdList:SetText(
+        L["Cmd Open Settings"] .. "\n" ..
+        L["Cmd Status"] .. "\n" ..
+        L["Cmd Test"] .. "\n" ..
+        L["Cmd Export"] .. "\n" ..
+        L["Cmd Import"]
+    )
     CmdList:SetJustifyH("LEFT")
 
     return Panel
 end
 
 -- Create Sub Panel for each module
-local function CreateSubPanel(Name, Label, Description)
+local function CreateSubPanel(Name, LabelKey, DescKey)
     local Panel = CreateFrame("Frame")
-    Panel.name = Label
+    Panel.name = L[LabelKey]
     Panel.parent = "Oculus"
 
     -- Title
     local Title = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
     Title:SetPoint("TOPLEFT", 16, -16)
-    Title:SetText("|cFF00FF00Oculus|r - " .. Label)
+    Title:SetText("|cFF00FF00Oculus|r - " .. L[LabelKey])
 
     -- Description
     local Desc = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     Desc:SetPoint("TOPLEFT", Title, "BOTTOMLEFT", 0, -8)
-    Desc:SetText(Description)
+    Desc:SetText(L[DescKey])
     Desc:SetJustifyH("LEFT")
 
     -- Enable Checkbox
     local EnableCB = CreateFrame("CheckButton", "OculusEnable" .. Name, Panel, "InterfaceOptionsCheckButtonTemplate")
     EnableCB:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -16)
-    EnableCB.Text:SetText("Enable " .. Label)
+    EnableCB.Text:SetText(L["Enable"] .. " " .. L[LabelKey])
 
     EnableCB:SetScript("OnShow", function(Self)
         Self:SetChecked(Oculus.DB.EnabledModules and Oculus.DB.EnabledModules[Name])
@@ -93,12 +138,12 @@ local function CreateSubPanel(Name, Label, Description)
         Oculus.DB.EnabledModules[Name] = Self:GetChecked()
 
         if Self:GetChecked() then
-            print("|cFF00FF00[Oculus]|r " .. Label .. " enabled")
+            print("|cFF00FF00[Oculus]|r " .. L[LabelKey] .. " " .. L["Module Enabled"])
             if Oculus.Modules[Name] and Oculus.Modules[Name].Enable then
                 Oculus.Modules[Name]:Enable()
             end
         else
-            print("|cFFFFFF00[Oculus]|r " .. Label .. " disabled")
+            print("|cFFFFFF00[Oculus]|r " .. L[LabelKey] .. " " .. L["Module Disabled"])
             if Oculus.Modules[Name] and Oculus.Modules[Name].Disable then
                 Oculus.Modules[Name]:Disable()
             end
@@ -108,7 +153,7 @@ local function CreateSubPanel(Name, Label, Description)
     -- Placeholder for module-specific settings
     local SettingsNote = Panel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
     SettingsNote:SetPoint("TOPLEFT", EnableCB, "BOTTOMLEFT", 0, -16)
-    SettingsNote:SetText("Module-specific settings will appear here when the module is loaded.")
+    SettingsNote:SetText(L["Settings Note"])
 
     return Panel
 end
@@ -139,12 +184,12 @@ function Oculus:ShowExportDialog()
     Dialog:SetScript("OnDragStart", Dialog.StartMoving)
     Dialog:SetScript("OnDragStop", Dialog.StopMovingOrSizing)
     Dialog:SetFrameStrata("FULLSCREEN_DIALOG")
-    Dialog.TitleText:SetText("Export Profile")
+    Dialog.TitleText:SetText(L["Export Profile"])
 
     -- Instructions
     local Instructions = Dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     Instructions:SetPoint("TOP", 0, -28)
-    Instructions:SetText("|cFFFFFF00Ctrl+C|r to copy, then |cFFFFFF00Ctrl+V|r to share")
+    Instructions:SetText(L["Copy Instructions"])
 
     -- Single line EditBox with border
     local EditBoxBG = CreateFrame("Frame", nil, Dialog, "BackdropTemplate")
@@ -182,7 +227,7 @@ function Oculus:ShowExportDialog()
     local CloseBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
     CloseBtn:SetPoint("BOTTOM", 0, 10)
     CloseBtn:SetSize(80, 24)
-    CloseBtn:SetText("Close")
+    CloseBtn:SetText(L["Close"])
     CloseBtn:SetScript("OnClick", function() Dialog:Hide() end)
 
     self.ExportDialog = Dialog
@@ -209,12 +254,12 @@ function Oculus:ShowImportDialog()
     Dialog:SetScript("OnDragStart", Dialog.StartMoving)
     Dialog:SetScript("OnDragStop", Dialog.StopMovingOrSizing)
     Dialog:SetFrameStrata("FULLSCREEN_DIALOG")
-    Dialog.TitleText:SetText("Import Profile")
+    Dialog.TitleText:SetText(L["Import Profile"])
 
     -- Instructions
     local Instructions = Dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     Instructions:SetPoint("TOP", 0, -28)
-    Instructions:SetText("Paste your profile string below (|cFFFFFF00Ctrl+V|r)")
+    Instructions:SetText(L["Paste Instructions"])
 
     -- EditBox with border
     local EditBoxBG = CreateFrame("Frame", nil, Dialog, "BackdropTemplate")
@@ -245,11 +290,11 @@ function Oculus:ShowImportDialog()
     local ImportBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
     ImportBtn:SetPoint("BOTTOMLEFT", 12, 10)
     ImportBtn:SetSize(80, 24)
-    ImportBtn:SetText("Import")
+    ImportBtn:SetText(L["Import"])
     ImportBtn:SetScript("OnClick", function()
         local Text = EditBox:GetText():trim()
         if Text == "" then
-            print("|cFFFF0000[Oculus]|r Import failed: Empty string")
+            print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. L["Import Empty"])
             return
         end
 
@@ -257,17 +302,17 @@ function Oculus:ShowImportDialog()
         if Data then
             OculusDB = Data
             Oculus.DB = OculusDB
-            print("|cFF00FF00[Oculus]|r Profile imported successfully! /reload to apply.")
+            print("|cFF00FF00[Oculus]|r " .. L["Import Success"])
             Dialog:Hide()
         else
-            print("|cFFFF0000[Oculus]|r Import failed: " .. (Err or "Invalid data"))
+            print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. (Err or L["Invalid Data"]))
         end
     end)
 
     local CloseBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
     CloseBtn:SetPoint("BOTTOMRIGHT", -12, 10)
     CloseBtn:SetSize(80, 24)
-    CloseBtn:SetText("Close")
+    CloseBtn:SetText(L["Close"])
     CloseBtn:SetScript("OnClick", function() Dialog:Hide() end)
 
     self.ImportDialog = Dialog
@@ -279,9 +324,9 @@ local function RegisterSettings()
 
     -- Sub panels
     local SubPanels = {
-        CreateSubPanel("UnitFrames", "Unit Frames", "Player/Target/Focus 버프/디버프 필터"),
-        CreateSubPanel("RaidFrames", "Raid Frames", "파티 버프/디버프 + 쿨다운 트래킹 + 적 시전 알림"),
-        CreateSubPanel("ArenaFrames", "Arena Frames", "아레나 프레임 정렬 + 버프/디버프 필터"),
+        CreateSubPanel("UnitFrames", "Unit Frames", "Unit Frames Desc"),
+        CreateSubPanel("RaidFrames", "Raid Frames", "Raid Frames Desc"),
+        CreateSubPanel("ArenaFrames", "Arena Frames", "Arena Frames Desc"),
     }
 
     if Settings and Settings.RegisterCanvasLayoutCategory then

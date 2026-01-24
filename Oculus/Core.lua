@@ -2,6 +2,7 @@
 -- PvP Addon Suite for WoW Midnight (12.0)
 
 local AddonName, Oculus = ...
+local L = Oculus.L
 
 -- Version
 Oculus.Version = "0.1.0"
@@ -40,12 +41,12 @@ end
 -- Register Module
 function Oculus:RegisterModule(Name, Module)
     if self.Modules[Name] then
-        print("|cFFFF0000[Oculus]|r Module already registered: " .. Name)
+        print("|cFFFF0000[Oculus]|r " .. L["Module Already Registered"] .. ": " .. Name)
         return false
     end
 
     self.Modules[Name] = Module
-    print("|cFF00FF00[Oculus]|r Module registered: " .. Name)
+    print("|cFF00FF00[Oculus]|r " .. L["Module Registered"] .. ": " .. Name)
     return true
 end
 
@@ -53,7 +54,7 @@ end
 function Oculus:EnableModule(Name)
     local Module = self.Modules[Name]
     if not Module then
-        print("|cFFFF0000[Oculus]|r Module not found: " .. Name)
+        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. Name)
         return false
     end
 
@@ -62,7 +63,7 @@ function Oculus:EnableModule(Name)
     end
 
     self.DB.EnabledModules[Name] = true
-    print("|cFF00FF00[Oculus]|r Module enabled: " .. Name)
+    print("|cFF00FF00[Oculus]|r " .. Name .. " " .. L["Module Enabled"])
     return true
 end
 
@@ -70,7 +71,7 @@ end
 function Oculus:DisableModule(Name)
     local Module = self.Modules[Name]
     if not Module then
-        print("|cFFFF0000[Oculus]|r Module not found: " .. Name)
+        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. Name)
         return false
     end
 
@@ -79,7 +80,7 @@ function Oculus:DisableModule(Name)
     end
 
     self.DB.EnabledModules[Name] = false
-    print("|cFFFFFF00[Oculus]|r Module disabled: " .. Name)
+    print("|cFFFFFF00[Oculus]|r " .. Name .. " " .. L["Module Disabled"])
     return true
 end
 
@@ -100,24 +101,24 @@ SlashCmdList["OCULUS"] = function(Msg)
         if Oculus.OpenSettings then
             Oculus:OpenSettings()
         else
-            print("|cFF00FF00[Oculus]|r Commands:")
-            print("  /oculus - Open settings")
-            print("  /oculus enable <module> - Enable module")
-            print("  /oculus disable <module> - Disable module")
-            print("  /oculus status - Show module status")
-            print("  /oculus test - Test mode (preview)")
-            print("  /oculus version - Show version")
+            print("|cFF00FF00[Oculus]|r " .. L["Commands"] .. ":")
+            print("  " .. L["Cmd Open Settings"])
+            print("  " .. L["Cmd Enable Module"])
+            print("  " .. L["Cmd Disable Module"])
+            print("  " .. L["Cmd Status"])
+            print("  " .. L["Cmd Test"])
+            print("  " .. L["Cmd Version"])
         end
         return
 
     elseif Command == "help" then
-        print("|cFF00FF00[Oculus]|r Commands:")
-        print("  /oculus - Open settings")
-        print("  /oculus enable <module> - Enable module")
-        print("  /oculus disable <module> - Disable module")
-        print("  /oculus status - Show module status")
-        print("  /oculus test - Test mode (preview)")
-        print("  /oculus version - Show version")
+        print("|cFF00FF00[Oculus]|r " .. L["Commands"] .. ":")
+        print("  " .. L["Cmd Open Settings"])
+        print("  " .. L["Cmd Enable Module"])
+        print("  " .. L["Cmd Disable Module"])
+        print("  " .. L["Cmd Status"])
+        print("  " .. L["Cmd Test"])
+        print("  " .. L["Cmd Version"])
 
     elseif Command == "enable" and Arg ~= "" then
         Oculus:EnableModule(Arg)
@@ -126,20 +127,20 @@ SlashCmdList["OCULUS"] = function(Msg)
         Oculus:DisableModule(Arg)
 
     elseif Command == "status" then
-        print("|cFF00FF00[Oculus]|r Module Status:")
+        print("|cFF00FF00[Oculus]|r " .. L["Module Status"] .. ":")
         for Name, Enabled in pairs(Oculus.DB.EnabledModules) do
-            local Status = Enabled and "|cFF00FF00Enabled|r" or "|cFFFF0000Disabled|r"
+            local Status = Enabled and "|cFF00FF00" .. L["Module Enabled"] .. "|r" or "|cFFFF0000" .. L["Module Disabled"] .. "|r"
             print("  " .. Name .. ": " .. Status)
         end
 
     elseif Command == "test" then
-        print("|cFFFFFF00[Oculus]|r Test mode not yet implemented")
+        print("|cFFFFFF00[Oculus]|r " .. L["Test Not Implemented"])
 
     elseif Command == "version" then
         print("|cFF00FF00[Oculus]|r Version: " .. Oculus.Version)
 
     else
-        print("|cFFFF0000[Oculus]|r Unknown command: " .. Command)
+        print("|cFFFF0000[Oculus]|r " .. L["Unknown Command"] .. ": " .. Command)
     end
 end
 
