@@ -65,6 +65,11 @@ local function UpdateAuraTimer(AuraFrame, ExpirationTime, Duration)
     local Timer = GetTimerText(AuraFrame)
     local Border = GetExpiringBorder(AuraFrame)
 
+    -- Hide Blizzard's default cooldown text
+    if AuraFrame.cooldown then
+        AuraFrame.cooldown:SetHideCountdownNumbers(true)
+    end
+
     -- Update border size to match current aura size
     Border:SetSize(AuraFrame:GetWidth() * 1.5, AuraFrame:GetHeight() * 1.5)
 
