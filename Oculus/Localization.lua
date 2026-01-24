@@ -76,6 +76,50 @@ Locales["enUS"] = {
     ["Language Confirm"] = "Change language and reload UI?",
     ["Yes"] = "Yes",
     ["No"] = "No",
+
+    -- RaidFrames Config
+    ["Aura Display"] = "Aura Display",
+    ["Aura Display Desc"] = "Configure buff and debuff icon display on raid frames.",
+    ["Buff Settings"] = "Buff Settings",
+    ["Debuff Settings"] = "Debuff Settings",
+    ["Timer Settings"] = "Timer Settings",
+    ["Buff Icon Size"] = "Buff Icon Size",
+    ["Debuff Icon Size"] = "Debuff Icon Size",
+    ["Show Duration Timer"] = "Show Duration Timer",
+    ["Expiring Warning (%)"] = "Expiring Warning (%)",
+    ["Actions"] = "Actions",
+    ["Preview Mode"] = "Preview Mode",
+    ["Reset to Defaults"] = "Reset to Defaults",
+    ["Preview Not Available"] = "Preview not available yet",
+    ["Settings Reset"] = "RaidFrames settings reset to defaults",
+    ["Reset Confirm"] = "Reset RaidFrames settings to defaults?",
+    ["Reset"] = "Reset",
+    ["Cancel"] = "Cancel",
+
+    -- RaidFrames Tooltips
+    ["Tooltip Buff Size"] = "Size of buff icons displayed on raid frames.",
+    ["Tooltip Debuff Size"] = "Size of debuff icons displayed on raid frames.",
+    ["Tooltip Show Timer"] = "Display remaining time on aura icons.",
+    ["Tooltip Expiring Warning"] = "When remaining duration falls below this percentage, show a red glow warning.",
+
+    -- RaidFrames Layout Settings
+    ["Buffs Per Row"] = "Buffs Per Row",
+    ["Debuffs Per Row"] = "Debuffs Per Row",
+    ["Buff Anchor"] = "Buff Position",
+    ["Debuff Anchor"] = "Debuff Position",
+    ["Use Custom Position"] = "Use Custom Position",
+    ["Tooltip Custom Position"] = "Enable custom positioning to manually control icon placement. When disabled, Blizzard's default layout is used.",
+
+    -- Anchor Points
+    ["TOPLEFT"] = "Top Left",
+    ["TOP"] = "Top",
+    ["TOPRIGHT"] = "Top Right",
+    ["LEFT"] = "Left",
+    ["CENTER"] = "Center",
+    ["RIGHT"] = "Right",
+    ["BOTTOMLEFT"] = "Bottom Left",
+    ["BOTTOM"] = "Bottom",
+    ["BOTTOMRIGHT"] = "Bottom Right",
 }
 
 -- Korean
@@ -140,6 +184,50 @@ Locales["koKR"] = {
     ["Language Confirm"] = "언어를 변경하고 UI를 다시 불러올까요?",
     ["Yes"] = "예",
     ["No"] = "아니오",
+
+    -- RaidFrames Config
+    ["Aura Display"] = "오라 표시",
+    ["Aura Display Desc"] = "레이드 프레임에 표시되는 버프/디버프 아이콘을 설정합니다.",
+    ["Buff Settings"] = "버프 설정",
+    ["Debuff Settings"] = "디버프 설정",
+    ["Timer Settings"] = "타이머 설정",
+    ["Buff Icon Size"] = "버프 아이콘 크기",
+    ["Debuff Icon Size"] = "디버프 아이콘 크기",
+    ["Show Duration Timer"] = "남은 시간 표시",
+    ["Expiring Warning (%)"] = "만료 경고 (%)",
+    ["Actions"] = "동작",
+    ["Preview Mode"] = "미리보기 모드",
+    ["Reset to Defaults"] = "기본값으로 초기화",
+    ["Preview Not Available"] = "미리보기 기능이 아직 준비되지 않았습니다",
+    ["Settings Reset"] = "레이드 프레임 설정이 기본값으로 초기화되었습니다",
+    ["Reset Confirm"] = "레이드 프레임 설정을 기본값으로 초기화할까요?",
+    ["Reset"] = "초기화",
+    ["Cancel"] = "취소",
+
+    -- RaidFrames Tooltips
+    ["Tooltip Buff Size"] = "레이드 프레임에 표시되는 버프 아이콘의 크기입니다.",
+    ["Tooltip Debuff Size"] = "레이드 프레임에 표시되는 디버프 아이콘의 크기입니다.",
+    ["Tooltip Show Timer"] = "오라 아이콘에 남은 시간을 표시합니다.",
+    ["Tooltip Expiring Warning"] = "남은 시간이 이 비율 미만일 때 빨간 테두리 경고를 표시합니다.",
+
+    -- RaidFrames Layout Settings
+    ["Buffs Per Row"] = "행당 버프 개수",
+    ["Debuffs Per Row"] = "행당 디버프 개수",
+    ["Buff Anchor"] = "버프 위치",
+    ["Debuff Anchor"] = "디버프 위치",
+    ["Use Custom Position"] = "커스텀 위치 사용",
+    ["Tooltip Custom Position"] = "커스텀 위치 설정을 활성화하면 아이콘 위치를 수동으로 제어할 수 있습니다. 비활성화 시 블리자드 기본 레이아웃이 사용됩니다.",
+
+    -- Anchor Points
+    ["TOPLEFT"] = "좌측 상단",
+    ["TOP"] = "상단",
+    ["TOPRIGHT"] = "우측 상단",
+    ["LEFT"] = "좌측",
+    ["CENTER"] = "중앙",
+    ["RIGHT"] = "우측",
+    ["BOTTOMLEFT"] = "좌측 하단",
+    ["BOTTOM"] = "하단",
+    ["BOTTOMRIGHT"] = "우측 하단",
 }
 
 -- Add missing keys to English

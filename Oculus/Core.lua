@@ -22,18 +22,30 @@ local Defaults = {
     },
 }
 
+-- Deep merge helper
+local function DeepMerge(Target, Source)
+    for Key, Value in pairs(Source) do
+        if Target[Key] == nil then
+            if type(Value) == "table" then
+                Target[Key] = {}
+                DeepMerge(Target[Key], Value)
+            else
+                Target[Key] = Value
+            end
+        elseif type(Value) == "table" and type(Target[Key]) == "table" then
+            DeepMerge(Target[Key], Value)
+        end
+    end
+end
+
 -- Initialize Database
 local function InitializeDB()
     if not OculusDB then
         OculusDB = {}
     end
 
-    -- Merge defaults
-    for Key, Value in pairs(Defaults) do
-        if OculusDB[Key] == nil then
-            OculusDB[Key] = Value
-        end
-    end
+    -- Deep merge defaults
+    DeepMerge(OculusDB, Defaults)
 
     Oculus.DB = OculusDB
 end
