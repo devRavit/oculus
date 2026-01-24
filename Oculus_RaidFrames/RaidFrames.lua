@@ -1,19 +1,32 @@
 -- Oculus RaidFrames Module
 -- Raid/Party Frame Enhancements
 
-local AddonName, Addon = ...
+local addonName, addon = ...
+
+
+-- Lua API Localization
+local pairs = pairs
+local type = type
+local tostring = tostring
+local print = print
+
+-- WoW API Localization
+local CreateFrame = CreateFrame
+local C_AddOns = C_AddOns
+
+
+-- Module References
 local Oculus = _G["Oculus"]
 local L = Oculus and Oculus.L or {}
 
+
 -- Module Table
 local RaidFrames = {}
-Addon.RaidFrames = RaidFrames
+addon.RaidFrames = RaidFrames
 
--- Version
-RaidFrames.Version = C_AddOns.GetAddOnMetadata(AddonName, "Version") or "0.0.0"
 
--- Default Settings (also used for reset)
-RaidFrames.Defaults = {
+-- Constants
+local DEFAULTS = {
     Enabled = true,
     Auras = {
         Enabled = true,
@@ -42,29 +55,36 @@ RaidFrames.Defaults = {
     },
 }
 
+-- Expose defaults for Config reset
+RaidFrames.Defaults = DEFAULTS
+
+-- Module Version
+RaidFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.0.0"
+
+
 -- Deep merge helper
-local function MergeDefaults(Target, Source)
-    for Key, Value in pairs(Source) do
-        if Target[Key] == nil then
-            if type(Value) == "table" then
-                Target[Key] = {}
-                MergeDefaults(Target[Key], Value)
+local function mergeDefaults(target, source)
+    for key, value in pairs(source) do
+        if target[key] == nil then
+            if type(value) == "table" then
+                target[key] = {}
+                mergeDefaults(target[key], value)
             else
-                Target[Key] = Value
+                target[key] = value
             end
-        elseif type(Value) == "table" and type(Target[Key]) == "table" then
-            MergeDefaults(Target[Key], Value)
+        elseif type(value) == "table" and type(target[key]) == "table" then
+            mergeDefaults(target[key], value)
         end
     end
 end
 
 -- Initialize Database
-local function InitializeDB()
+local function initializeDB()
     if not Oculus_RaidFramesDB then
         Oculus_RaidFramesDB = {}
     end
 
-    MergeDefaults(Oculus_RaidFramesDB, RaidFrames.Defaults)
+    mergeDefaults(Oculus_RaidFramesDB, DEFAULTS)
     RaidFrames.DB = Oculus_RaidFramesDB
 end
 
@@ -76,14 +96,14 @@ function RaidFrames:GetDB()
         if not Oculus_RaidFramesDB then
             Oculus_RaidFramesDB = {}
         end
-        MergeDefaults(Oculus_RaidFramesDB, self.Defaults)
+        mergeDefaults(Oculus_RaidFramesDB, DEFAULTS)
         self.DB = Oculus_RaidFramesDB
     end
     return self.DB
 end
 
 -- Hook all existing and new CompactUnitFrames
-local function HookAllFrames()
+local function hookAllFrames()
     -- Auras.lua handles the CompactUnitFrame_UpdateAuras hook
     -- Nothing else needed here for now
 end
@@ -93,11 +113,11 @@ function RaidFrames:Enable()
     -- Sync DB.Enabled with Core's EnabledModules
     self.DB.Enabled = true
 
-    HookAllFrames()
+    hookAllFrames()
 
     -- Enable submodules
-    if Addon.Auras and self.DB.Auras.Enabled then
-        Addon.Auras:Enable()
+    if addon.Auras and self.DB.Auras.Enabled then
+        addon.Auras:Enable()
     end
 
     print("|cFF00FF00[Oculus]|r RaidFrames " .. (L["Module Enabled"] or "enabled"))
@@ -108,8 +128,8 @@ function RaidFrames:Disable()
     -- Sync DB.Enabled with Core's EnabledModules
     self.DB.Enabled = false
 
-    if Addon.Auras then
-        Addon.Auras:Disable()
+    if addon.Auras then
+        addon.Auras:Disable()
     end
 
     self.IsEnabled = false
@@ -119,46 +139,47 @@ end
 
 -- Initialize
 function RaidFrames:Initialize()
-    InitializeDB()
+    initializeDB()
 end
 
 -- Debug: Print current DB state
 function RaidFrames:DebugDB()
-    local DB = self:GetDB()
+    local db = self:GetDB()
     print("|cFF00FF00[Oculus RaidFrames]|r DB Debug:")
-    print("  DB exists: " .. tostring(DB ~= nil))
-    if DB then
-        print("  Enabled: " .. tostring(DB.Enabled))
-        if DB.Auras then
-            print("  Auras.Enabled: " .. tostring(DB.Auras.Enabled))
-            print("  Auras.BuffSize: " .. tostring(DB.Auras.BuffSize))
-            print("  Auras.DebuffSize: " .. tostring(DB.Auras.DebuffSize))
-            print("  Auras.ShowTimer: " .. tostring(DB.Auras.ShowTimer))
+    print("  DB exists: " .. tostring(db ~= nil))
+    if db then
+        print("  Enabled: " .. tostring(db.Enabled))
+        if db.Auras then
+            print("  Auras.Enabled: " .. tostring(db.Auras.Enabled))
+            print("  Auras.BuffSize: " .. tostring(db.Auras.BuffSize))
+            print("  Auras.DebuffSize: " .. tostring(db.Auras.DebuffSize))
+            print("  Auras.ShowTimer: " .. tostring(db.Auras.ShowTimer))
         else
             print("  Auras: nil")
         end
     end
-    if Addon.Auras then
+    if addon.Auras then
         print("  Auras module: loaded")
-        print("  Auras.IsEnabled: " .. tostring(Addon.Auras.IsEnabled))
-        print("  Auras.Hooked: " .. tostring(Addon.Auras.Hooked))
+        print("  Auras.IsEnabled: " .. tostring(addon.Auras.IsEnabled))
+        print("  Auras.Hooked: " .. tostring(addon.Auras.Hooked))
     else
         print("  Auras module: not loaded")
     end
 end
 
+
 -- Slash command for debug
 SLASH_OCULUSRF1 = "/ocrf"
-SlashCmdList["OCULUSRF"] = function(Msg)
-    local Command = Msg:lower():trim()
-    if Command == "debug" then
+SlashCmdList["OCULUSRF"] = function(msg)
+    local command = msg:lower():trim()
+    if command == "debug" then
         RaidFrames:DebugDB()
-    elseif Command == "enable" then
+    elseif command == "enable" then
         RaidFrames:Enable()
         RaidFrames.IsEnabled = true
-    elseif Command == "refresh" then
-        if Addon.Auras then
-            Addon.Auras:RefreshAllFrames()
+    elseif command == "refresh" then
+        if addon.Auras then
+            addon.Auras:RefreshAllFrames()
             print("|cFF00FF00[Oculus]|r Frames refreshed")
         end
     else
@@ -169,15 +190,10 @@ SlashCmdList["OCULUSRF"] = function(Msg)
     end
 end
 
--- Event Frame
-local EventFrame = CreateFrame("Frame")
-EventFrame:RegisterEvent("ADDON_LOADED")
-EventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-
-EventFrame:SetScript("OnEvent", function(Self, Event, ...)
-    if Event == "ADDON_LOADED" then
-        local LoadedAddon = ...
-        if LoadedAddon == AddonName then
+-- Event Handlers
+local eventHandlers = {
+    ADDON_LOADED = function(self, loadedAddon)
+        if loadedAddon == addonName then
             RaidFrames:Initialize()
 
             -- Register with Core
@@ -185,22 +201,34 @@ EventFrame:SetScript("OnEvent", function(Self, Event, ...)
                 Oculus:RegisterModule("RaidFrames", RaidFrames)
             end
 
-            Self:UnregisterEvent("ADDON_LOADED")
+            self:UnregisterEvent("ADDON_LOADED")
         end
+    end,
 
-    elseif Event == "PLAYER_ENTERING_WORLD" then
+    PLAYER_ENTERING_WORLD = function()
         -- Ensure DB is initialized
         RaidFrames:GetDB()
 
         -- Enable if Core says so (or if Core isn't available, enable anyway)
-        local ShouldEnable = true
+        local shouldEnable = true
         if Oculus and Oculus.IsModuleEnabled then
-            ShouldEnable = Oculus:IsModuleEnabled("RaidFrames")
+            shouldEnable = Oculus:IsModuleEnabled("RaidFrames")
         end
 
-        if ShouldEnable and not RaidFrames.IsEnabled then
+        if shouldEnable and not RaidFrames.IsEnabled then
             RaidFrames:Enable()
             RaidFrames.IsEnabled = true
         end
+    end,
+}
+
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+    local handler = eventHandlers[event]
+    if handler then
+        handler(self, ...)
     end
 end)

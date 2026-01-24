@@ -1,7 +1,16 @@
 -- Oculus Localization
 -- Korean (koKR) and English (enUS)
 
-local AddonName, Oculus = ...
+local addonName, Oculus = ...
+
+
+-- Lua API Localization
+local pairs = pairs
+local setmetatable = setmetatable
+
+-- WoW API Localization
+local GetLocale = GetLocale
+
 
 -- Localization Table
 local L = {}
@@ -13,11 +22,12 @@ Oculus.Languages = {
     ["koKR"] = "한국어",
 }
 
+
 -- Locale Strings Storage
-local Locales = {}
+local LOCALES = {}
 
 -- English (Default)
-Locales["enUS"] = {
+LOCALES["enUS"] = {
     -- General
     ["Addon Description"] = "PvP addon that lets you see everything in combat",
 
@@ -123,7 +133,7 @@ Locales["enUS"] = {
 }
 
 -- Korean
-Locales["koKR"] = {
+LOCALES["koKR"] = {
     -- General
     ["Addon Description"] = "PvP 전투에서 모든 것을 볼 수 있게 해주는 애드온",
 
@@ -231,37 +241,37 @@ Locales["koKR"] = {
 }
 
 -- Add missing keys to English
-Locales["enUS"]["Language"] = "Language"
-Locales["enUS"]["Language Changed"] = "Language changed. /reload to apply."
+LOCALES["enUS"]["Language"] = "Language"
+LOCALES["enUS"]["Language Changed"] = "Language changed. /reload to apply."
 
 -- Get Current Language (checks saved setting first, then client locale)
 function Oculus:GetLanguage()
     -- Check saved setting
-    if OculusDB and OculusDB.Language and Locales[OculusDB.Language] then
+    if OculusDB and OculusDB.Language and LOCALES[OculusDB.Language] then
         return OculusDB.Language
     end
     -- Fall back to client locale
-    local ClientLocale = GetLocale()
-    return Locales[ClientLocale] and ClientLocale or "enUS"
+    local clientLocale = GetLocale()
+    return LOCALES[clientLocale] and clientLocale or "enUS"
 end
 
 -- Set Language
-function Oculus:SetLanguage(Lang)
-    if not Locales[Lang] then
+function Oculus:SetLanguage(lang)
+    if not LOCALES[lang] then
         return false
     end
     if not OculusDB then
         OculusDB = {}
     end
-    OculusDB.Language = Lang
+    OculusDB.Language = lang
     return true
 end
 
 -- Metatable for L - dynamically gets strings based on current language
 setmetatable(L, {
-    __index = function(_, Key)
-        local Lang = Oculus:GetLanguage()
-        local Strings = Locales[Lang] or Locales["enUS"]
-        return Strings[Key] or Locales["enUS"][Key] or Key
+    __index = function(_, key)
+        local lang = Oculus:GetLanguage()
+        local strings = LOCALES[lang] or LOCALES["enUS"]
+        return strings[key] or LOCALES["enUS"][key] or key
     end,
 })

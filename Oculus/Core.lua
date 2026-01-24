@@ -1,20 +1,21 @@
--- Oculus Core Module
--- PvP Addon Suite for WoW Midnight (12.0)
+--[[
+    Oculus Core Module
+    PvP Addon Suite for WoW Midnight (12.0)
+]]
 
-local AddonName, Oculus = ...
-local L = Oculus.L
+local addonName, Oculus = ...
 
--- Version (read from TOC)
-Oculus.Version = C_AddOns.GetAddOnMetadata(AddonName, "Version") or "0.0.0"
 
--- Saved Variables (will be loaded from OculusDB)
-Oculus.DB = {}
+-- WoW API Localization
+local CreateFrame = CreateFrame
+local pairs = pairs
+local type = type
+local print = print
+local C_AddOns = C_AddOns
 
--- Module Registry
-Oculus.Modules = {}
 
--- Default Settings
-local Defaults = {
+-- Constants
+local DEFAULTS = {
     EnabledModules = {
         UnitFrames = true,
         RaidFrames = true,
@@ -22,94 +23,102 @@ local Defaults = {
     },
 }
 
+
+-- Module State
+local L = Oculus.L
+Oculus.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.0.0"
+Oculus.DB = {}
+Oculus.Modules = {}
+
+
 -- Deep merge helper
-local function DeepMerge(Target, Source)
-    for Key, Value in pairs(Source) do
-        if Target[Key] == nil then
-            if type(Value) == "table" then
-                Target[Key] = {}
-                DeepMerge(Target[Key], Value)
+local function deepMerge(target, source)
+    for key, value in pairs(source) do
+        if target[key] == nil then
+            if type(value) == "table" then
+                target[key] = {}
+                deepMerge(target[key], value)
             else
-                Target[Key] = Value
+                target[key] = value
             end
-        elseif type(Value) == "table" and type(Target[Key]) == "table" then
-            DeepMerge(Target[Key], Value)
+        elseif type(value) == "table" and type(target[key]) == "table" then
+            deepMerge(target[key], value)
         end
     end
 end
 
 -- Initialize Database
-local function InitializeDB()
+local function initializeDB()
     if not OculusDB then
         OculusDB = {}
     end
 
-    -- Deep merge defaults
-    DeepMerge(OculusDB, Defaults)
-
+    deepMerge(OculusDB, DEFAULTS)
     Oculus.DB = OculusDB
 end
 
+
 -- Register Module
-function Oculus:RegisterModule(Name, Module)
-    if self.Modules[Name] then
-        print("|cFFFF0000[Oculus]|r " .. L["Module Already Registered"] .. ": " .. Name)
+function Oculus:RegisterModule(name, module)
+    if self.Modules[name] then
+        print("|cFFFF0000[Oculus]|r " .. L["Module Already Registered"] .. ": " .. name)
         return false
     end
 
-    self.Modules[Name] = Module
-    print("|cFF00FF00[Oculus]|r " .. L["Module Registered"] .. ": " .. Name)
+    self.Modules[name] = module
+    print("|cFF00FF00[Oculus]|r " .. L["Module Registered"] .. ": " .. name)
     return true
 end
 
 -- Enable Module
-function Oculus:EnableModule(Name)
-    local Module = self.Modules[Name]
-    if not Module then
-        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. Name)
+function Oculus:EnableModule(name)
+    local module = self.Modules[name]
+    if not module then
+        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. name)
         return false
     end
 
-    if Module.Enable then
-        Module:Enable()
+    if module.Enable then
+        module:Enable()
     end
 
-    self.DB.EnabledModules[Name] = true
-    print("|cFF00FF00[Oculus]|r " .. Name .. " " .. L["Module Enabled"])
+    self.DB.EnabledModules[name] = true
+    print("|cFF00FF00[Oculus]|r " .. name .. " " .. L["Module Enabled"])
     return true
 end
 
 -- Disable Module
-function Oculus:DisableModule(Name)
-    local Module = self.Modules[Name]
-    if not Module then
-        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. Name)
+function Oculus:DisableModule(name)
+    local module = self.Modules[name]
+    if not module then
+        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. name)
         return false
     end
 
-    if Module.Disable then
-        Module:Disable()
+    if module.Disable then
+        module:Disable()
     end
 
-    self.DB.EnabledModules[Name] = false
-    print("|cFFFFFF00[Oculus]|r " .. Name .. " " .. L["Module Disabled"])
+    self.DB.EnabledModules[name] = false
+    print("|cFFFFFF00[Oculus]|r " .. name .. " " .. L["Module Disabled"])
     return true
 end
 
 -- Is Module Enabled
-function Oculus:IsModuleEnabled(Name)
-    return self.DB.EnabledModules[Name] == true
+function Oculus:IsModuleEnabled(name)
+    return self.DB.EnabledModules[name] == true
 end
+
 
 -- Slash Commands
 SLASH_OCULUS1 = "/oculus"
 SLASH_OCULUS2 = "/oc"
 
-SlashCmdList["OCULUS"] = function(Msg)
-    local Command, Arg = Msg:match("^(%S*)%s*(.-)$")
-    Command = Command:lower()
+local function handleSlashCommand(msg)
+    local command, arg = msg:match("^(%S*)%s*(.-)$")
+    command = command:lower()
 
-    if Command == "" or Command == "config" or Command == "options" then
+    if command == "" or command == "config" or command == "options" then
         if Oculus.OpenSettings then
             Oculus:OpenSettings()
         else
@@ -121,9 +130,8 @@ SlashCmdList["OCULUS"] = function(Msg)
             print("  " .. L["Cmd Test"])
             print("  " .. L["Cmd Version"])
         end
-        return
 
-    elseif Command == "help" then
+    elseif command == "help" then
         print("|cFF00FF00[Oculus]|r " .. L["Commands"] .. ":")
         print("  " .. L["Cmd Open Settings"])
         print("  " .. L["Cmd Enable Module"])
@@ -132,52 +140,64 @@ SlashCmdList["OCULUS"] = function(Msg)
         print("  " .. L["Cmd Test"])
         print("  " .. L["Cmd Version"])
 
-    elseif Command == "enable" and Arg ~= "" then
-        Oculus:EnableModule(Arg)
+    elseif command == "enable" and arg ~= "" then
+        Oculus:EnableModule(arg)
 
-    elseif Command == "disable" and Arg ~= "" then
-        Oculus:DisableModule(Arg)
+    elseif command == "disable" and arg ~= "" then
+        Oculus:DisableModule(arg)
 
-    elseif Command == "status" then
+    elseif command == "status" then
         print("|cFF00FF00[Oculus]|r " .. L["Module Status"] .. ":")
-        for Name, Enabled in pairs(Oculus.DB.EnabledModules) do
-            local Status = Enabled and "|cFF00FF00" .. L["Module Enabled"] .. "|r" or "|cFFFF0000" .. L["Module Disabled"] .. "|r"
-            print("  " .. Name .. ": " .. Status)
+        for name, enabled in pairs(Oculus.DB.EnabledModules) do
+            local status = enabled
+                and "|cFF00FF00" .. L["Module Enabled"] .. "|r"
+                or "|cFFFF0000" .. L["Module Disabled"] .. "|r"
+            print("  " .. name .. ": " .. status)
         end
 
-    elseif Command == "test" then
+    elseif command == "test" then
         print("|cFFFFFF00[Oculus]|r " .. L["Test Not Implemented"])
 
-    elseif Command == "version" then
+    elseif command == "version" then
         print("|cFF00FF00[Oculus]|r Version: " .. Oculus.Version)
 
     else
-        print("|cFFFF0000[Oculus]|r " .. L["Unknown Command"] .. ": " .. Command)
+        print("|cFFFF0000[Oculus]|r " .. L["Unknown Command"] .. ": " .. command)
     end
 end
 
--- Event Frame
-local EventFrame = CreateFrame("Frame")
-EventFrame:RegisterEvent("ADDON_LOADED")
-EventFrame:RegisterEvent("PLAYER_LOGIN")
+SlashCmdList["OCULUS"] = handleSlashCommand
 
-EventFrame:SetScript("OnEvent", function(Self, Event, ...)
-    if Event == "ADDON_LOADED" then
-        local LoadedAddon = ...
-        if LoadedAddon == AddonName then
-            InitializeDB()
+
+-- Event Handlers
+local eventHandlers = {
+    ADDON_LOADED = function(loadedAddon)
+        if loadedAddon == addonName then
+            initializeDB()
             print("|cFF00FF00[Oculus]|r Core loaded (v" .. Oculus.Version .. ")")
         end
+    end,
 
-    elseif Event == "PLAYER_LOGIN" then
-        -- Initialize enabled modules
-        for Name, Module in pairs(Oculus.Modules) do
-            if Oculus:IsModuleEnabled(Name) and Module.Initialize then
-                Module:Initialize()
+    PLAYER_LOGIN = function()
+        for name, module in pairs(Oculus.Modules) do
+            if Oculus:IsModuleEnabled(name) and module.Initialize then
+                module:Initialize()
             end
         end
+    end,
+}
+
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
+
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+    local handler = eventHandlers[event]
+    if handler then
+        handler(...)
     end
 end)
+
 
 -- Make Oculus globally accessible
 _G["Oculus"] = Oculus

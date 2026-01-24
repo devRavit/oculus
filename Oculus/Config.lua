@@ -1,138 +1,160 @@
--- Oculus Config Panel
--- Settings UI for ESC > AddOns menu
+--[[
+    Oculus Config Panel
+    Settings UI for ESC > AddOns menu
+]]
 
-local AddonName, Oculus = ...
+local addonName, Oculus = ...
+
+
+-- WoW API Localization
+local CreateFrame = CreateFrame
+local pairs = pairs
+local ipairs = ipairs
+local next = next
+local print = print
+local Settings = Settings
+local StaticPopup_Show = StaticPopup_Show
+local UIDropDownMenu_CreateInfo = UIDropDownMenu_CreateInfo
+local UIDropDownMenu_AddButton = UIDropDownMenu_AddButton
+local UIDropDownMenu_SetWidth = UIDropDownMenu_SetWidth
+local UIDropDownMenu_SetText = UIDropDownMenu_SetText
+local UIDropDownMenu_Initialize = UIDropDownMenu_Initialize
+local ReloadUI = ReloadUI
+local InterfaceOptions_AddCategory = InterfaceOptions_AddCategory
+local InterfaceOptionsFrame_OpenToCategory = InterfaceOptionsFrame_OpenToCategory
+
+
+-- Module State
 local L = Oculus.L
 
+
 -- Create Main Settings Panel
-local function CreateMainPanel()
-    local Panel = CreateFrame("Frame")
-    Panel.name = "Oculus"
+local function createMainPanel()
+    local panel = CreateFrame("Frame")
+    panel.name = "Oculus"
 
     -- Title
-    local Title = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    Title:SetPoint("TOPLEFT", 16, -16)
-    Title:SetText("|cFF00FF00Oculus|r - PvP Addon Suite")
+    local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetText("|cFF00FF00Oculus|r - PvP Addon Suite")
 
     -- Version
-    local Version = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-    Version:SetPoint("TOPLEFT", Title, "BOTTOMLEFT", 0, -8)
-    Version:SetText("Version: " .. (Oculus.Version or "0.1.0"))
+    local version = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+    version:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    version:SetText("Version: " .. (Oculus.Version or "0.1.0"))
 
     -- Description
-    local Desc = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    Desc:SetPoint("TOPLEFT", Version, "BOTTOMLEFT", 0, -16)
-    Desc:SetText(L["Addon Description"])
-    Desc:SetJustifyH("LEFT")
+    local desc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    desc:SetPoint("TOPLEFT", version, "BOTTOMLEFT", 0, -16)
+    desc:SetText(L["Addon Description"])
+    desc:SetJustifyH("LEFT")
 
     -- Language Section
-    local LangTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    LangTitle:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -24)
-    LangTitle:SetText(L["Language"])
+    local langTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    langTitle:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -24)
+    langTitle:SetText(L["Language"])
 
     -- Language Dropdown
-    local LangDropdown = CreateFrame("Frame", "OculusLanguageDropdown", Panel, "UIDropDownMenuTemplate")
-    LangDropdown:SetPoint("TOPLEFT", LangTitle, "BOTTOMLEFT", -16, -4)
+    local langDropdown = CreateFrame("Frame", "OculusLanguageDropdown", panel, "UIDropDownMenuTemplate")
+    langDropdown:SetPoint("TOPLEFT", langTitle, "BOTTOMLEFT", -16, -4)
 
-    local function LangDropdown_OnClick(Self, Arg1)
-        local CurrentLang = Oculus:GetLanguage()
-        if Arg1 ~= CurrentLang then
-            -- Store pending change for confirmation
-            Oculus.PendingLanguage = Arg1
-            Oculus.PreviousLanguage = CurrentLang
-            -- Show confirmation dialog
+    local function onLanguageClick(self, langCode)
+        local currentLang = Oculus:GetLanguage()
+        if langCode ~= currentLang then
+            Oculus.PendingLanguage = langCode
+            Oculus.PreviousLanguage = currentLang
             StaticPopup_Show("OCULUS_LANGUAGE_CONFIRM")
         end
     end
 
-    local function LangDropdown_Initialize(Self, Level)
-        local Info = UIDropDownMenu_CreateInfo()
-        for LangCode, LangName in pairs(Oculus.Languages) do
-            Info.text = LangName
-            Info.arg1 = LangCode
-            Info.func = LangDropdown_OnClick
-            Info.checked = (LangCode == Oculus:GetLanguage())
-            UIDropDownMenu_AddButton(Info, Level)
+    local function initializeLanguageDropdown(self, level)
+        local info = UIDropDownMenu_CreateInfo()
+        for langCode, langName in pairs(Oculus.Languages) do
+            info.text = langName
+            info.arg1 = langCode
+            info.func = onLanguageClick
+            info.checked = (langCode == Oculus:GetLanguage())
+            UIDropDownMenu_AddButton(info, level)
         end
     end
 
-    UIDropDownMenu_SetWidth(LangDropdown, 120)
-    UIDropDownMenu_Initialize(LangDropdown, LangDropdown_Initialize)
+    UIDropDownMenu_SetWidth(langDropdown, 120)
+    UIDropDownMenu_Initialize(langDropdown, initializeLanguageDropdown)
 
-    Panel:SetScript("OnShow", function()
-        UIDropDownMenu_SetText(LangDropdown, Oculus.Languages[Oculus:GetLanguage()])
+    panel:SetScript("OnShow", function()
+        UIDropDownMenu_SetText(langDropdown, Oculus.Languages[Oculus:GetLanguage()])
     end)
 
     -- Profile Section
-    local ProfileTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    ProfileTitle:SetPoint("TOPLEFT", LangDropdown, "BOTTOMLEFT", 16, -16)
-    ProfileTitle:SetText(L["Profile"])
+    local profileTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    profileTitle:SetPoint("TOPLEFT", langDropdown, "BOTTOMLEFT", 16, -16)
+    profileTitle:SetText(L["Profile"])
 
     -- Export Button
-    local ExportBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    ExportBtn:SetPoint("TOPLEFT", ProfileTitle, "BOTTOMLEFT", 0, -8)
-    ExportBtn:SetSize(100, 24)
-    ExportBtn:SetText(L["Export"])
-    ExportBtn:SetScript("OnClick", function()
+    local exportBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    exportBtn:SetPoint("TOPLEFT", profileTitle, "BOTTOMLEFT", 0, -8)
+    exportBtn:SetSize(100, 24)
+    exportBtn:SetText(L["Export"])
+    exportBtn:SetScript("OnClick", function()
         Oculus:ShowExportDialog()
     end)
 
     -- Import Button
-    local ImportBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    ImportBtn:SetPoint("LEFT", ExportBtn, "RIGHT", 8, 0)
-    ImportBtn:SetSize(100, 24)
-    ImportBtn:SetText(L["Import"])
-    ImportBtn:SetScript("OnClick", function()
+    local importBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 8, 0)
+    importBtn:SetSize(100, 24)
+    importBtn:SetText(L["Import"])
+    importBtn:SetScript("OnClick", function()
         Oculus:ShowImportDialog()
     end)
 
     -- Commands Section
-    local CmdTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    CmdTitle:SetPoint("TOPLEFT", ExportBtn, "BOTTOMLEFT", 0, -24)
-    CmdTitle:SetText(L["Commands"])
+    local cmdTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    cmdTitle:SetPoint("TOPLEFT", exportBtn, "BOTTOMLEFT", 0, -24)
+    cmdTitle:SetText(L["Commands"])
 
-    local CmdList = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    CmdList:SetPoint("TOPLEFT", CmdTitle, "BOTTOMLEFT", 0, -8)
-    CmdList:SetText(
+    local cmdList = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    cmdList:SetPoint("TOPLEFT", cmdTitle, "BOTTOMLEFT", 0, -8)
+    cmdList:SetText(
         L["Cmd Open Settings"] .. "\n" ..
         L["Cmd Status"] .. "\n" ..
         L["Cmd Test"] .. "\n" ..
         L["Cmd Export"] .. "\n" ..
         L["Cmd Import"]
     )
-    CmdList:SetJustifyH("LEFT")
+    cmdList:SetJustifyH("LEFT")
 
-    return Panel
+    return panel
 end
 
 -- Store module panels for external access
 Oculus.ModulePanels = {}
 
 -- Create Sub Panel for each module
-local function CreateSubPanel(Name, LabelKey, DescKey)
-    local Panel = CreateFrame("Frame")
-    Panel.name = L[LabelKey]
-    Panel.parent = "Oculus"
-    Panel.moduleName = Name
+local function createSubPanel(name, labelKey, descKey)
+    local panel = CreateFrame("Frame")
+    panel.name = L[labelKey]
+    panel.parent = "Oculus"
+    panel.moduleName = name
 
     -- Title
-    local Title = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    Title:SetPoint("TOPLEFT", 16, -16)
-    Title:SetText("|cFF00FF00Oculus|r - " .. L[LabelKey])
+    local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -16)
+    title:SetText("|cFF00FF00Oculus|r - " .. L[labelKey])
 
     -- Description
-    local Desc = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    Desc:SetPoint("TOPLEFT", Title, "BOTTOMLEFT", 0, -8)
-    Desc:SetText(L[DescKey])
-    Desc:SetJustifyH("LEFT")
+    local desc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    desc:SetText(L[descKey])
+    desc:SetJustifyH("LEFT")
 
     -- Enable Checkbox
-    local EnableCB = CreateFrame("CheckButton", "OculusEnable" .. Name, Panel, "InterfaceOptionsCheckButtonTemplate")
-    EnableCB:SetPoint("TOPLEFT", Desc, "BOTTOMLEFT", 0, -16)
-    EnableCB.Text:SetText(L["Enable"] .. " " .. L[LabelKey])
-    Panel.EnableCheckbox = EnableCB
+    local enableCB = CreateFrame("CheckButton", "OculusEnable" .. name, panel, "InterfaceOptionsCheckButtonTemplate")
+    enableCB:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -16)
+    enableCB.Text:SetText(L["Enable"] .. " " .. L[labelKey])
+    panel.EnableCheckbox = enableCB
 
-    EnableCB:SetScript("OnShow", function(Self)
+    enableCB:SetScript("OnShow", function(self)
         -- Ensure DB is initialized
         if not Oculus.DB or not next(Oculus.DB) then
             Oculus.DB = OculusDB or {}
@@ -141,41 +163,41 @@ local function CreateSubPanel(Name, LabelKey, DescKey)
             Oculus.DB.EnabledModules = {}
         end
         -- Default to true if not explicitly set to false
-        local IsEnabled = Oculus.DB.EnabledModules[Name]
-        if IsEnabled == nil then
-            IsEnabled = true  -- Default enabled
-            Oculus.DB.EnabledModules[Name] = true
+        local isEnabled = Oculus.DB.EnabledModules[name]
+        if isEnabled == nil then
+            isEnabled = true
+            Oculus.DB.EnabledModules[name] = true
         end
-        Self:SetChecked(IsEnabled)
+        self:SetChecked(isEnabled)
     end)
 
-    EnableCB:SetScript("OnClick", function(Self)
+    enableCB:SetScript("OnClick", function(self)
         if not Oculus.DB.EnabledModules then
             Oculus.DB.EnabledModules = {}
         end
-        Oculus.DB.EnabledModules[Name] = Self:GetChecked()
+        Oculus.DB.EnabledModules[name] = self:GetChecked()
 
-        if Self:GetChecked() then
-            print("|cFF00FF00[Oculus]|r " .. L[LabelKey] .. " " .. L["Module Enabled"])
-            if Oculus.Modules[Name] and Oculus.Modules[Name].Enable then
-                Oculus.Modules[Name]:Enable()
+        if self:GetChecked() then
+            print("|cFF00FF00[Oculus]|r " .. L[labelKey] .. " " .. L["Module Enabled"])
+            if Oculus.Modules[name] and Oculus.Modules[name].Enable then
+                Oculus.Modules[name]:Enable()
             end
         else
-            print("|cFFFFFF00[Oculus]|r " .. L[LabelKey] .. " " .. L["Module Disabled"])
-            if Oculus.Modules[Name] and Oculus.Modules[Name].Disable then
-                Oculus.Modules[Name]:Disable()
+            print("|cFFFFFF00[Oculus]|r " .. L[labelKey] .. " " .. L["Module Disabled"])
+            if Oculus.Modules[name] and Oculus.Modules[name].Disable then
+                Oculus.Modules[name]:Disable()
             end
         end
     end)
 
     -- Content anchor for modules to add settings
-    Panel.ContentAnchor = EnableCB
-    Panel.YOffset = -50
+    panel.ContentAnchor = enableCB
+    panel.YOffset = -50
 
     -- Store reference
-    Oculus.ModulePanels[Name] = Panel
+    Oculus.ModulePanels[name] = panel
 
-    return Panel
+    return panel
 end
 
 -- Profile Export Dialog (Alert Style)
@@ -186,71 +208,70 @@ function Oculus:ShowExportDialog()
     end
 
     if self.ExportDialog then
-        -- Update content
-        local Encoded = Oculus.Utils.ExportProfile(OculusDB or {})
-        self.ExportDialog.EditBox:SetText(Encoded)
+        local encoded = Oculus.Utils.ExportProfile(OculusDB or {})
+        self.ExportDialog.EditBox:SetText(encoded)
         self.ExportDialog.EditBox:HighlightText()
         self.ExportDialog.EditBox:SetFocus()
         self.ExportDialog:Show()
         return
     end
 
-    local Dialog = CreateFrame("Frame", "OculusExportDialog", UIParent, "BasicFrameTemplateWithInset")
-    Dialog:SetSize(400, 140)
-    Dialog:SetPoint("CENTER")
-    Dialog:SetMovable(true)
-    Dialog:EnableMouse(true)
-    Dialog:RegisterForDrag("LeftButton")
-    Dialog:SetScript("OnDragStart", Dialog.StartMoving)
-    Dialog:SetScript("OnDragStop", Dialog.StopMovingOrSizing)
-    Dialog:SetFrameStrata("FULLSCREEN_DIALOG")
-    Dialog.TitleText:SetText(L["Export Profile"])
+    local dialog = CreateFrame("Frame", "OculusExportDialog", UIParent, "BasicFrameTemplateWithInset")
+    dialog:SetSize(400, 140)
+    dialog:SetPoint("CENTER")
+    dialog:SetMovable(true)
+    dialog:EnableMouse(true)
+    dialog:RegisterForDrag("LeftButton")
+    dialog:SetScript("OnDragStart", dialog.StartMoving)
+    dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
+    dialog:SetFrameStrata("FULLSCREEN_DIALOG")
+    dialog.TitleText:SetText(L["Export Profile"])
 
     -- Instructions
-    local Instructions = Dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    Instructions:SetPoint("TOP", 0, -28)
-    Instructions:SetText(L["Copy Instructions"])
+    local instructions = dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    instructions:SetPoint("TOP", 0, -28)
+    instructions:SetText(L["Copy Instructions"])
 
     -- Single line EditBox with border
-    local EditBoxBG = CreateFrame("Frame", nil, Dialog, "BackdropTemplate")
-    EditBoxBG:SetPoint("TOPLEFT", 12, -50)
-    EditBoxBG:SetPoint("TOPRIGHT", -12, -50)
-    EditBoxBG:SetHeight(36)
-    EditBoxBG:SetBackdrop({
+    local editBoxBG = CreateFrame("Frame", nil, dialog, "BackdropTemplate")
+    editBoxBG:SetPoint("TOPLEFT", 12, -50)
+    editBoxBG:SetPoint("TOPRIGHT", -12, -50)
+    editBoxBG:SetHeight(36)
+    editBoxBG:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 14,
         insets = { left = 3, right = 3, top = 3, bottom = 3 },
     })
-    EditBoxBG:SetBackdropColor(0, 0, 0, 0.8)
-    EditBoxBG:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    editBoxBG:SetBackdropColor(0, 0, 0, 0.8)
+    editBoxBG:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 
-    local EditBox = CreateFrame("EditBox", nil, EditBoxBG)
-    EditBox:SetPoint("TOPLEFT", 8, -8)
-    EditBox:SetPoint("BOTTOMRIGHT", -8, 8)
-    EditBox:SetFontObject("ChatFontNormal")
-    EditBox:SetAutoFocus(false)
-    EditBox:SetScript("OnEscapePressed", function() Dialog:Hide() end)
-    Dialog.EditBox = EditBox
+    local editBox = CreateFrame("EditBox", nil, editBoxBG)
+    editBox:SetPoint("TOPLEFT", 8, -8)
+    editBox:SetPoint("BOTTOMRIGHT", -8, 8)
+    editBox:SetFontObject("ChatFontNormal")
+    editBox:SetAutoFocus(false)
+    editBox:SetScript("OnEscapePressed", function() dialog:Hide() end)
+    dialog.EditBox = editBox
 
     -- Generate Base64 encoded string
-    local Encoded = Oculus.Utils.ExportProfile(OculusDB or {})
-    EditBox:SetText(Encoded)
-    EditBox:HighlightText()
-    EditBox:SetFocus()
+    local encoded = Oculus.Utils.ExportProfile(OculusDB or {})
+    editBox:SetText(encoded)
+    editBox:HighlightText()
+    editBox:SetFocus()
 
     -- Auto-highlight on click
-    EditBox:SetScript("OnMouseUp", function(Self)
-        Self:HighlightText()
+    editBox:SetScript("OnMouseUp", function(self)
+        self:HighlightText()
     end)
 
-    local CloseBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
-    CloseBtn:SetPoint("BOTTOM", 0, 10)
-    CloseBtn:SetSize(80, 24)
-    CloseBtn:SetText(L["Close"])
-    CloseBtn:SetScript("OnClick", function() Dialog:Hide() end)
+    local closeBtn = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    closeBtn:SetPoint("BOTTOM", 0, 10)
+    closeBtn:SetSize(80, 24)
+    closeBtn:SetText(L["Close"])
+    closeBtn:SetScript("OnClick", function() dialog:Hide() end)
 
-    self.ExportDialog = Dialog
+    self.ExportDialog = dialog
 end
 
 -- Profile Import Dialog
@@ -265,109 +286,109 @@ function Oculus:ShowImportDialog()
         return
     end
 
-    local Dialog = CreateFrame("Frame", "OculusImportDialog", UIParent, "BasicFrameTemplateWithInset")
-    Dialog:SetSize(400, 200)
-    Dialog:SetPoint("CENTER")
-    Dialog:SetMovable(true)
-    Dialog:EnableMouse(true)
-    Dialog:RegisterForDrag("LeftButton")
-    Dialog:SetScript("OnDragStart", Dialog.StartMoving)
-    Dialog:SetScript("OnDragStop", Dialog.StopMovingOrSizing)
-    Dialog:SetFrameStrata("FULLSCREEN_DIALOG")
-    Dialog.TitleText:SetText(L["Import Profile"])
+    local dialog = CreateFrame("Frame", "OculusImportDialog", UIParent, "BasicFrameTemplateWithInset")
+    dialog:SetSize(400, 200)
+    dialog:SetPoint("CENTER")
+    dialog:SetMovable(true)
+    dialog:EnableMouse(true)
+    dialog:RegisterForDrag("LeftButton")
+    dialog:SetScript("OnDragStart", dialog.StartMoving)
+    dialog:SetScript("OnDragStop", dialog.StopMovingOrSizing)
+    dialog:SetFrameStrata("FULLSCREEN_DIALOG")
+    dialog.TitleText:SetText(L["Import Profile"])
 
     -- Instructions
-    local Instructions = Dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    Instructions:SetPoint("TOP", 0, -28)
-    Instructions:SetText(L["Paste Instructions"])
+    local instructions = dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    instructions:SetPoint("TOP", 0, -28)
+    instructions:SetText(L["Paste Instructions"])
 
     -- EditBox with border
-    local EditBoxBG = CreateFrame("Frame", nil, Dialog, "BackdropTemplate")
-    EditBoxBG:SetPoint("TOPLEFT", 12, -50)
-    EditBoxBG:SetPoint("TOPRIGHT", -12, -50)
-    EditBoxBG:SetHeight(80)
-    EditBoxBG:SetBackdrop({
+    local editBoxBG = CreateFrame("Frame", nil, dialog, "BackdropTemplate")
+    editBoxBG:SetPoint("TOPLEFT", 12, -50)
+    editBoxBG:SetPoint("TOPRIGHT", -12, -50)
+    editBoxBG:SetHeight(80)
+    editBoxBG:SetBackdrop({
         bgFile = "Interface\\Buttons\\WHITE8x8",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 14,
         insets = { left = 3, right = 3, top = 3, bottom = 3 },
     })
-    EditBoxBG:SetBackdropColor(0, 0, 0, 0.8)
-    EditBoxBG:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+    editBoxBG:SetBackdropColor(0, 0, 0, 0.8)
+    editBoxBG:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
 
-    local ScrollFrame = CreateFrame("ScrollFrame", nil, EditBoxBG, "UIPanelScrollFrameTemplate")
-    ScrollFrame:SetPoint("TOPLEFT", 8, -8)
-    ScrollFrame:SetPoint("BOTTOMRIGHT", -26, 8)
+    local scrollFrame = CreateFrame("ScrollFrame", nil, editBoxBG, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 8, -8)
+    scrollFrame:SetPoint("BOTTOMRIGHT", -26, 8)
 
-    local EditBox = CreateFrame("EditBox", nil, ScrollFrame)
-    EditBox:SetMultiLine(true)
-    EditBox:SetFontObject("ChatFontNormal")
-    EditBox:SetWidth(330)
-    EditBox:SetAutoFocus(true)
-    EditBox:SetText("")
-    ScrollFrame:SetScrollChild(EditBox)
+    local editBox = CreateFrame("EditBox", nil, scrollFrame)
+    editBox:SetMultiLine(true)
+    editBox:SetFontObject("ChatFontNormal")
+    editBox:SetWidth(330)
+    editBox:SetAutoFocus(true)
+    editBox:SetText("")
+    scrollFrame:SetScrollChild(editBox)
 
-    local ImportBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
-    ImportBtn:SetPoint("BOTTOMLEFT", 12, 10)
-    ImportBtn:SetSize(80, 24)
-    ImportBtn:SetText(L["Import"])
-    ImportBtn:SetScript("OnClick", function()
-        local Text = EditBox:GetText():trim()
-        if Text == "" then
+    local importBtn = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    importBtn:SetPoint("BOTTOMLEFT", 12, 10)
+    importBtn:SetSize(80, 24)
+    importBtn:SetText(L["Import"])
+    importBtn:SetScript("OnClick", function()
+        local text = editBox:GetText():trim()
+        if text == "" then
             print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. L["Import Empty"])
             return
         end
 
-        local Data, Err = Oculus.Utils.ImportProfile(Text)
-        if Data then
-            OculusDB = Data
+        local data, err = Oculus.Utils.ImportProfile(text)
+        if data then
+            OculusDB = data
             Oculus.DB = OculusDB
             print("|cFF00FF00[Oculus]|r " .. L["Import Success"])
-            Dialog:Hide()
+            dialog:Hide()
         else
-            print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. (Err or L["Invalid Data"]))
+            print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. (err or L["Invalid Data"]))
         end
     end)
 
-    local CloseBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
-    CloseBtn:SetPoint("BOTTOMRIGHT", -12, 10)
-    CloseBtn:SetSize(80, 24)
-    CloseBtn:SetText(L["Close"])
-    CloseBtn:SetScript("OnClick", function() Dialog:Hide() end)
+    local closeBtn = CreateFrame("Button", nil, dialog, "UIPanelButtonTemplate")
+    closeBtn:SetPoint("BOTTOMRIGHT", -12, 10)
+    closeBtn:SetSize(80, 24)
+    closeBtn:SetText(L["Close"])
+    closeBtn:SetScript("OnClick", function() dialog:Hide() end)
 
-    self.ImportDialog = Dialog
+    self.ImportDialog = dialog
 end
 
 -- Register with Settings API (12.0+)
-local function RegisterSettings()
-    local MainPanel = CreateMainPanel()
+local function registerSettings()
+    local mainPanel = createMainPanel()
 
     -- Sub panels
-    local SubPanels = {
-        CreateSubPanel("UnitFrames", "Unit Frames", "Unit Frames Desc"),
-        CreateSubPanel("RaidFrames", "Raid Frames", "Raid Frames Desc"),
-        CreateSubPanel("ArenaFrames", "Arena Frames", "Arena Frames Desc"),
+    local subPanels = {
+        createSubPanel("UnitFrames", "Unit Frames", "Unit Frames Desc"),
+        createSubPanel("RaidFrames", "Raid Frames", "Raid Frames Desc"),
+        createSubPanel("ArenaFrames", "Arena Frames", "Arena Frames Desc"),
     }
 
     if Settings and Settings.RegisterCanvasLayoutCategory then
         -- New 12.0 Settings API
-        local MainCategory = Settings.RegisterCanvasLayoutCategory(MainPanel, MainPanel.name)
-        Settings.RegisterAddOnCategory(MainCategory)
-        Oculus.SettingsCategory = MainCategory
+        local mainCategory = Settings.RegisterCanvasLayoutCategory(mainPanel, mainPanel.name)
+        Settings.RegisterAddOnCategory(mainCategory)
+        Oculus.SettingsCategory = mainCategory
 
         -- Register sub-categories
-        for _, SubPanel in ipairs(SubPanels) do
-            local SubCategory = Settings.RegisterCanvasLayoutSubcategory(MainCategory, SubPanel, SubPanel.name)
+        for _, subPanel in ipairs(subPanels) do
+            Settings.RegisterCanvasLayoutSubcategory(mainCategory, subPanel, subPanel.name)
         end
     else
         -- Fallback for older API
-        InterfaceOptions_AddCategory(MainPanel)
-        for _, SubPanel in ipairs(SubPanels) do
-            InterfaceOptions_AddCategory(SubPanel)
+        InterfaceOptions_AddCategory(mainPanel)
+        for _, subPanel in ipairs(subPanels) do
+            InterfaceOptions_AddCategory(subPanel)
         end
     end
 
-    Oculus.SettingsPanel = MainPanel
+    Oculus.SettingsPanel = mainPanel
 end
 
 -- Open Settings Panel
@@ -386,7 +407,6 @@ StaticPopupDialogs["OCULUS_LANGUAGE_CONFIRM"] = {
     button1 = L["Yes"],
     button2 = L["No"],
     OnAccept = function()
-        -- Apply language change and reload
         if Oculus.PendingLanguage then
             Oculus:SetLanguage(Oculus.PendingLanguage)
             Oculus.PendingLanguage = nil
@@ -395,10 +415,8 @@ StaticPopupDialogs["OCULUS_LANGUAGE_CONFIRM"] = {
         end
     end,
     OnCancel = function()
-        -- Rollback - reset dropdown to previous language
         Oculus.PendingLanguage = nil
         Oculus.PreviousLanguage = nil
-        -- Refresh dropdown display
         if OculusLanguageDropdown then
             UIDropDownMenu_SetText(OculusLanguageDropdown, Oculus.Languages[Oculus:GetLanguage()])
         end
@@ -409,12 +427,13 @@ StaticPopupDialogs["OCULUS_LANGUAGE_CONFIRM"] = {
     preferredIndex = 3,
 }
 
--- Initialize on ADDON_LOADED
-local Frame = CreateFrame("Frame")
-Frame:RegisterEvent("ADDON_LOADED")
-Frame:SetScript("OnEvent", function(Self, Event, LoadedAddon)
-    if LoadedAddon == AddonName then
-        RegisterSettings()
-        Self:UnregisterEvent("ADDON_LOADED")
+
+-- Event Handler
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:SetScript("OnEvent", function(self, event, loadedAddon)
+    if loadedAddon == addonName then
+        registerSettings()
+        self:UnregisterEvent("ADDON_LOADED")
     end
 end)
