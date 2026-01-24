@@ -113,56 +113,66 @@ local function CreateSubPanel(Name, Label, Description)
     return Panel
 end
 
--- Profile Export Dialog
+-- Profile Export Dialog (Alert Style)
 function Oculus:ShowExportDialog()
     if self.ExportDialog then
+        -- Update content
+        local Encoded = Oculus.Utils.ExportProfile(OculusDB or {})
+        self.ExportDialog.EditBox:SetText(Encoded)
+        self.ExportDialog.EditBox:HighlightText()
+        self.ExportDialog.EditBox:SetFocus()
         self.ExportDialog:Show()
         return
     end
 
     local Dialog = CreateFrame("Frame", "OculusExportDialog", UIParent, "BasicFrameTemplateWithInset")
-    Dialog:SetSize(400, 300)
+    Dialog:SetSize(400, 140)
     Dialog:SetPoint("CENTER")
     Dialog:SetMovable(true)
     Dialog:EnableMouse(true)
     Dialog:RegisterForDrag("LeftButton")
     Dialog:SetScript("OnDragStart", Dialog.StartMoving)
     Dialog:SetScript("OnDragStop", Dialog.StopMovingOrSizing)
-    Dialog.TitleText:SetText("Oculus - Export Profile")
+    Dialog:SetFrameStrata("FULLSCREEN_DIALOG")
+    Dialog.TitleText:SetText("Export Profile")
 
-    local ScrollFrame = CreateFrame("ScrollFrame", nil, Dialog, "UIPanelScrollFrameTemplate")
-    ScrollFrame:SetPoint("TOPLEFT", 12, -32)
-    ScrollFrame:SetPoint("BOTTOMRIGHT", -30, 40)
+    -- Instructions
+    local Instructions = Dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    Instructions:SetPoint("TOP", 0, -28)
+    Instructions:SetText("|cFFFFFF00Ctrl+C|r to copy, then |cFFFFFF00Ctrl+V|r to share")
 
-    local EditBox = CreateFrame("EditBox", nil, ScrollFrame)
-    EditBox:SetMultiLine(true)
+    -- Single line EditBox with border
+    local EditBoxBG = CreateFrame("Frame", nil, Dialog, "BackdropTemplate")
+    EditBoxBG:SetPoint("TOPLEFT", 12, -50)
+    EditBoxBG:SetPoint("TOPRIGHT", -12, -50)
+    EditBoxBG:SetHeight(36)
+    EditBoxBG:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    EditBoxBG:SetBackdropColor(0, 0, 0, 0.8)
+    EditBoxBG:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    local EditBox = CreateFrame("EditBox", nil, EditBoxBG)
+    EditBox:SetPoint("TOPLEFT", 8, -8)
+    EditBox:SetPoint("BOTTOMRIGHT", -8, 8)
     EditBox:SetFontObject("ChatFontNormal")
-    EditBox:SetWidth(340)
     EditBox:SetAutoFocus(false)
-    ScrollFrame:SetScrollChild(EditBox)
+    EditBox:SetScript("OnEscapePressed", function() Dialog:Hide() end)
+    Dialog.EditBox = EditBox
 
-    -- Serialize settings
-    local function Serialize(Tbl, Indent)
-        Indent = Indent or ""
-        local Result = "{\n"
-        for K, V in pairs(Tbl) do
-            local Key = type(K) == "string" and ('["' .. K .. '"]') or ("[" .. K .. "]")
-            if type(V) == "table" then
-                Result = Result .. Indent .. "  " .. Key .. " = " .. Serialize(V, Indent .. "  ") .. ",\n"
-            elseif type(V) == "string" then
-                Result = Result .. Indent .. "  " .. Key .. ' = "' .. V .. '",\n'
-            elseif type(V) == "boolean" then
-                Result = Result .. Indent .. "  " .. Key .. " = " .. tostring(V) .. ",\n"
-            else
-                Result = Result .. Indent .. "  " .. Key .. " = " .. tostring(V) .. ",\n"
-            end
-        end
-        return Result .. Indent .. "}"
-    end
-
-    EditBox:SetText(Serialize(OculusDB or {}))
+    -- Generate Base64 encoded string
+    local Encoded = Oculus.Utils.ExportProfile(OculusDB or {})
+    EditBox:SetText(Encoded)
     EditBox:HighlightText()
     EditBox:SetFocus()
+
+    -- Auto-highlight on click
+    EditBox:SetScript("OnMouseUp", function(Self)
+        Self:HighlightText()
+    end)
 
     local CloseBtn = CreateFrame("Button", nil, Dialog, "UIPanelButtonTemplate")
     CloseBtn:SetPoint("BOTTOM", 0, 10)
@@ -181,24 +191,44 @@ function Oculus:ShowImportDialog()
     end
 
     local Dialog = CreateFrame("Frame", "OculusImportDialog", UIParent, "BasicFrameTemplateWithInset")
-    Dialog:SetSize(400, 300)
+    Dialog:SetSize(400, 200)
     Dialog:SetPoint("CENTER")
     Dialog:SetMovable(true)
     Dialog:EnableMouse(true)
     Dialog:RegisterForDrag("LeftButton")
     Dialog:SetScript("OnDragStart", Dialog.StartMoving)
     Dialog:SetScript("OnDragStop", Dialog.StopMovingOrSizing)
-    Dialog.TitleText:SetText("Oculus - Import Profile")
+    Dialog:SetFrameStrata("FULLSCREEN_DIALOG")
+    Dialog.TitleText:SetText("Import Profile")
 
-    local ScrollFrame = CreateFrame("ScrollFrame", nil, Dialog, "UIPanelScrollFrameTemplate")
-    ScrollFrame:SetPoint("TOPLEFT", 12, -32)
-    ScrollFrame:SetPoint("BOTTOMRIGHT", -30, 70)
+    -- Instructions
+    local Instructions = Dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    Instructions:SetPoint("TOP", 0, -28)
+    Instructions:SetText("Paste your profile string below (|cFFFFFF00Ctrl+V|r)")
+
+    -- EditBox with border
+    local EditBoxBG = CreateFrame("Frame", nil, Dialog, "BackdropTemplate")
+    EditBoxBG:SetPoint("TOPLEFT", 12, -50)
+    EditBoxBG:SetPoint("TOPRIGHT", -12, -50)
+    EditBoxBG:SetHeight(80)
+    EditBoxBG:SetBackdrop({
+        bgFile = "Interface\\Buttons\\WHITE8x8",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    })
+    EditBoxBG:SetBackdropColor(0, 0, 0, 0.8)
+    EditBoxBG:SetBackdropBorderColor(0.4, 0.4, 0.4, 1)
+
+    local ScrollFrame = CreateFrame("ScrollFrame", nil, EditBoxBG, "UIPanelScrollFrameTemplate")
+    ScrollFrame:SetPoint("TOPLEFT", 8, -8)
+    ScrollFrame:SetPoint("BOTTOMRIGHT", -26, 8)
 
     local EditBox = CreateFrame("EditBox", nil, ScrollFrame)
     EditBox:SetMultiLine(true)
     EditBox:SetFontObject("ChatFontNormal")
-    EditBox:SetWidth(340)
-    EditBox:SetAutoFocus(false)
+    EditBox:SetWidth(330)
+    EditBox:SetAutoFocus(true)
     EditBox:SetText("")
     ScrollFrame:SetScrollChild(EditBox)
 
@@ -207,20 +237,20 @@ function Oculus:ShowImportDialog()
     ImportBtn:SetSize(80, 24)
     ImportBtn:SetText("Import")
     ImportBtn:SetScript("OnClick", function()
-        local Text = EditBox:GetText()
-        local Func, Err = loadstring("return " .. Text)
-        if Func then
-            local Success, Result = pcall(Func)
-            if Success and type(Result) == "table" then
-                OculusDB = Result
-                Oculus.DB = OculusDB
-                print("|cFF00FF00[Oculus]|r Profile imported successfully! /reload to apply.")
-                Dialog:Hide()
-            else
-                print("|cFFFF0000[Oculus]|r Import failed: Invalid data")
-            end
+        local Text = EditBox:GetText():trim()
+        if Text == "" then
+            print("|cFFFF0000[Oculus]|r Import failed: Empty string")
+            return
+        end
+
+        local Data, Err = Oculus.Utils.ImportProfile(Text)
+        if Data then
+            OculusDB = Data
+            Oculus.DB = OculusDB
+            print("|cFF00FF00[Oculus]|r Profile imported successfully! /reload to apply.")
+            Dialog:Hide()
         else
-            print("|cFFFF0000[Oculus]|r Import failed: " .. (Err or "Unknown error"))
+            print("|cFFFF0000[Oculus]|r Import failed: " .. (Err or "Invalid data"))
         end
     end)
 
