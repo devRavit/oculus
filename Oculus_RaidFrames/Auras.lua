@@ -19,12 +19,22 @@ end
 -- Create or get timer text for an aura frame
 local function GetTimerText(AuraFrame)
     if not AuraFrame.OculusTimer then
-        local Timer = AuraFrame:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+        local Timer = AuraFrame:CreateFontString(nil, "OVERLAY")
+        Timer:SetFont(STANDARD_TEXT_FONT, 10, "OUTLINE")
         Timer:SetPoint("CENTER", AuraFrame, "CENTER", 0, 0)
         Timer:SetTextColor(1, 1, 0.6)
         AuraFrame.OculusTimer = Timer
     end
     return AuraFrame.OculusTimer
+end
+
+-- Update timer font size based on aura size
+local function UpdateTimerFontSize(AuraFrame)
+    if AuraFrame.OculusTimer then
+        local Size = AuraFrame:GetWidth()
+        local FontSize = math.max(8, math.floor(Size * 0.45))
+        AuraFrame.OculusTimer:SetFont(STANDARD_TEXT_FONT, FontSize, "OUTLINE")
+    end
 end
 
 -- Create or get expiring border for an aura frame
@@ -70,7 +80,8 @@ local function UpdateAuraTimer(AuraFrame, ExpirationTime, Duration)
         AuraFrame.cooldown:SetHideCountdownNumbers(true)
     end
 
-    -- Update border size to match current aura size
+    -- Update sizes to match current aura size
+    UpdateTimerFontSize(AuraFrame)
     Border:SetSize(AuraFrame:GetWidth() * 1.5, AuraFrame:GetHeight() * 1.5)
 
     if ExpirationTime and ExpirationTime > 0 and Duration and Duration > 0 then
