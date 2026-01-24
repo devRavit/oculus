@@ -1,5 +1,35 @@
 # Oculus Addon - Development Guidelines
 
+> **Claude 지시사항**: 이 파일의 모든 규칙을 준수할 것.
+
+---
+
+## Checkpoint: 작업 전 필수 읽기
+
+모듈 관련 작업 시 **반드시** 해당 명세서를 먼저 읽을 것.
+
+| 작업 대상 | 명세서 경로 |
+|-----------|-------------|
+| 전체 구조/개요 | `docs/spec/Overview.md` |
+| Core 모듈 | `docs/spec/Core.md` |
+| UnitFrames 모듈 | `docs/spec/UnitFrames.md` |
+| RaidFrames 모듈 | `docs/spec/RaidFrames.md` |
+| ArenaFrames 모듈 | `docs/spec/ArenaFrames.md` |
+
+### 작업 흐름
+
+1. **작업 시작 전**: 관련 명세서 Read 도구로 읽기
+2. **구현 중**: 명세서의 구조/API 설계 따르기
+3. **구현 완료 후**: 명세서 업데이트 (구현된 내용 반영)
+
+### 명세서 업데이트 규칙
+
+- 새 기능 추가 시: 해당 섹션에 기능 설명 추가
+- API 변경 시: 함수 시그니처, 파라미터 업데이트
+- 설정 추가 시: DB 구조, 기본값 업데이트
+
+---
+
 ## Localization (i18n)
 
 **모든 UI에 표시되는 문자열은 반드시 현지화(Localization) 처리되어야 함**

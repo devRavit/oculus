@@ -80,23 +80,17 @@ GROUP_ROSTER_UPDATE        -- 파티/레이드 변경
 
 ## 코딩 컨벤션
 
-### 네이밍
+> 상세한 코딩 컨벤션은 [CLAUDE.md](../../CLAUDE.md#lua-coding-conventions) 참조
 
-| 타입 | 스타일 | 예시 |
-|------|--------|------|
-| 함수 | PascalCase | `GetPlayerHealth()`, `UpdateFrame()` |
-| 변수 | PascalCase | `PlayerHealth`, `IconSize` |
-| 상수 | UPPER_SNAKE_CASE | `MAX_ICONS`, `DEFAULT_SIZE` |
-| 파일 | PascalCase | `Core.lua`, `ModuleManager.lua` |
-| 테이블/모듈 | PascalCase | `Oculus`, `OculusDB` |
-| 이벤트 | UPPER_SNAKE_CASE | `UNIT_AURA`, `PLAYER_LOGIN` |
+### 요약
 
-### 규칙
-
-- `local` 사용 권장 (전역 오염 방지)
-- 함수는 동사로 시작 (`Get`, `Set`, `Update`, `Create`, `Handle`)
-- 불리언 변수는 `Is`, `Has`, `Can` prefix (`IsEnabled`, `HasAura`)
-- 콜백/핸들러는 `On` prefix (`OnEvent`, `OnClick`)
+| 대상 | 규칙 | 예시 |
+|------|------|------|
+| 모듈/클래스 | PascalCase | `UnitFrames`, `RaidFrames` |
+| 함수 | PascalCase | `CreateFrame`, `UpdateHealth` |
+| 지역 변수 | camelCase | `healthBar`, `currentTarget` |
+| 상수 | LOUD_SNAKE_CASE | `MAX_FRAMES`, `DEFAULT_WIDTH` |
+| 이벤트 핸들러 | On + PascalCase | `OnLoad`, `OnEvent` |
 
 ## 참고 자료
 
