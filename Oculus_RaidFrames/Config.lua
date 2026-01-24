@@ -1,41 +1,26 @@
 -- Oculus RaidFrames - Config
--- Settings UI
+-- Settings UI (adds to existing Core panel)
 
 local AddonName, Addon = ...
 local RaidFrames = Addon.RaidFrames
 local Oculus = _G["Oculus"]
 local L = Oculus and Oculus.L or {}
 
--- Create Settings Panel
-local function CreateSettingsPanel()
-    local Panel = CreateFrame("Frame")
-    Panel.name = L["Raid Frames"] or "Raid Frames"
-    Panel.parent = "Oculus"
+-- Add settings to the RaidFrames panel
+local function PopulateSettingsPanel()
+    local Panel = Oculus and Oculus.ModulePanels and Oculus.ModulePanels["RaidFrames"]
+    if not Panel then
+        print("|cFFFF0000[Oculus RaidFrames]|r Settings panel not found")
+        return
+    end
 
-    local YOffset = -16
-
-    -- Title
-    local Title = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-    Title:SetPoint("TOPLEFT", 16, YOffset)
-    Title:SetText("|cFF00FF00Oculus|r - " .. (L["Raid Frames"] or "Raid Frames"))
-    YOffset = YOffset - 30
-
-    -- Description
-    local Desc = Panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-    Desc:SetPoint("TOPLEFT", 16, YOffset)
-    Desc:SetText(L["Raid Frames Desc"] or "Party buff/debuff + cooldown tracking + enemy cast alert")
-    YOffset = YOffset - 30
-
-    -- == Aura Settings Section ==
-    local AuraTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    AuraTitle:SetPoint("TOPLEFT", 16, YOffset)
-    AuraTitle:SetText("Aura Settings")
-    YOffset = YOffset - 25
+    local Anchor = Panel.EnableCheckbox
+    local YOffset = -50
 
     -- Helper: Create Slider
-    local function CreateSlider(Parent, Name, Label, Min, Max, Step, YPos)
-        local Slider = CreateFrame("Slider", "OculusRF" .. Name .. "Slider", Parent, "OptionsSliderTemplate")
-        Slider:SetPoint("TOPLEFT", 20, YPos)
+    local function CreateSlider(Name, Label, Min, Max, Step, YPos)
+        local Slider = CreateFrame("Slider", "OculusRF" .. Name .. "Slider", Panel, "OptionsSliderTemplate")
+        Slider:SetPoint("TOPLEFT", Anchor, "BOTTOMLEFT", 4, YPos)
         Slider:SetWidth(200)
         Slider:SetMinMaxValues(Min, Max)
         Slider:SetValueStep(Step)
@@ -52,32 +37,38 @@ local function CreateSettingsPanel()
     end
 
     -- Helper: Create Checkbox
-    local function CreateCheckbox(Parent, Name, Label, YPos)
-        local CB = CreateFrame("CheckButton", "OculusRF" .. Name .. "CB", Parent, "InterfaceOptionsCheckButtonTemplate")
-        CB:SetPoint("TOPLEFT", 16, YPos)
+    local function CreateCheckbox(Name, Label, YPos)
+        local CB = CreateFrame("CheckButton", "OculusRF" .. Name .. "CB", Panel, "InterfaceOptionsCheckButtonTemplate")
+        CB:SetPoint("TOPLEFT", Anchor, "BOTTOMLEFT", 0, YPos)
         CB.Text:SetText(Label)
         return CB
     end
 
+    -- == Aura Settings Section ==
+    local AuraTitle = Panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    AuraTitle:SetPoint("TOPLEFT", Anchor, "BOTTOMLEFT", 0, YOffset)
+    AuraTitle:SetText("Aura Settings")
+    YOffset = YOffset - 25
+
     -- Buff Size Slider
-    local BuffSizeSlider = CreateSlider(Panel, "BuffSize", "Buff Size", 10, 40, 1, YOffset)
+    local BuffSizeSlider = CreateSlider("BuffSize", "Buff Size", 10, 40, 1, YOffset)
     YOffset = YOffset - 50
 
     -- Debuff Size Slider
-    local DebuffSizeSlider = CreateSlider(Panel, "DebuffSize", "Debuff Size", 10, 50, 1, YOffset)
+    local DebuffSizeSlider = CreateSlider("DebuffSize", "Debuff Size", 10, 50, 1, YOffset)
     YOffset = YOffset - 50
 
     -- Show Timer Checkbox
-    local ShowTimerCB = CreateCheckbox(Panel, "ShowTimer", "Show Timer", YOffset)
+    local ShowTimerCB = CreateCheckbox("ShowTimer", "Show Timer", YOffset)
     YOffset = YOffset - 30
 
     -- Expiring Threshold Slider
-    local ExpiringSlider = CreateSlider(Panel, "ExpiringThreshold", "Expiring Warning (%)", 10, 50, 5, YOffset)
+    local ExpiringSlider = CreateSlider("ExpiringThreshold", "Expiring Warning (%)", 10, 50, 5, YOffset)
     YOffset = YOffset - 60
 
     -- == Preview Button ==
     local PreviewBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    PreviewBtn:SetPoint("TOPLEFT", 16, YOffset)
+    PreviewBtn:SetPoint("TOPLEFT", Anchor, "BOTTOMLEFT", 0, YOffset)
     PreviewBtn:SetSize(120, 24)
     PreviewBtn:SetText("Preview")
     PreviewBtn:SetScript("OnClick", function()
@@ -89,7 +80,7 @@ local function CreateSettingsPanel()
     end)
 
     -- Load current values on show
-    Panel:SetScript("OnShow", function()
+    Panel:HookScript("OnShow", function()
         local DB = RaidFrames and RaidFrames.DB and RaidFrames.DB.Auras
         if not DB then return end
 
@@ -141,31 +132,18 @@ local function CreateSettingsPanel()
         end
     end)
 
-    return Panel
+    Panel.SettingsPopulated = true
 end
 
--- Register Settings
-local function RegisterSettings()
-    local Panel = CreateSettingsPanel()
-
-    if Settings and Settings.RegisterCanvasLayoutSubcategory then
-        if Oculus and Oculus.SettingsCategory then
-            Settings.RegisterCanvasLayoutSubcategory(Oculus.SettingsCategory, Panel, Panel.name)
-        end
-    elseif InterfaceOptions_AddCategory then
-        InterfaceOptions_AddCategory(Panel)
-    end
-
-    Addon.SettingsPanel = Panel
-end
-
--- Initialize on ADDON_LOADED
+-- Initialize on PLAYER_LOGIN (after Core is fully loaded)
 local Frame = CreateFrame("Frame")
-Frame:RegisterEvent("ADDON_LOADED")
-Frame:SetScript("OnEvent", function(Self, Event, LoadedAddon)
-    if LoadedAddon == AddonName then
-        -- Delay to ensure Core settings are loaded
-        C_Timer.After(0.1, RegisterSettings)
-        Self:UnregisterEvent("ADDON_LOADED")
-    end
+Frame:RegisterEvent("PLAYER_LOGIN")
+Frame:SetScript("OnEvent", function(Self, Event)
+    -- Delay slightly to ensure Core panels are created
+    C_Timer.After(0.2, function()
+        if Oculus and Oculus.ModulePanels then
+            PopulateSettingsPanel()
+        end
+    end)
+    Self:UnregisterEvent("PLAYER_LOGIN")
 end)
