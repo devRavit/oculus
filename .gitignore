@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Lua
+*.luac
+
+# Build
+dist/
+*.zip
+
+# WoW specific
+!.pkgmeta
