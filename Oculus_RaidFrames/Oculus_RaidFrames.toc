@@ -4,8 +4,10 @@
 ## Author: RAVIT
 ## Version: 0.1.0
 ## Dependencies: Oculus
+## OptionalDeps: Masque
 ## SavedVariables: Oculus_RaidFramesDB
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
 RaidFrames.lua
 Auras.lua
+Config.lua

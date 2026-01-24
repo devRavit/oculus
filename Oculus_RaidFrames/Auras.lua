@@ -11,6 +11,14 @@ Addon.Auras = Auras
 
 local IsEnabled = false
 
+-- Masque Support
+local Masque = LibStub and LibStub("Masque", true)
+local MasqueGroup = nil
+
+if Masque then
+    MasqueGroup = Masque:Group("Oculus", "Raid Auras")
+end
+
 -- Get DB shortcut
 local function GetDB()
     return RaidFrames and RaidFrames.DB and RaidFrames.DB.Auras
@@ -37,10 +45,23 @@ local function UpdateTimerFontSize(AuraFrame)
     end
 end
 
+-- Register aura frame with Masque
+local function RegisterWithMasque(AuraFrame)
+    if MasqueGroup and not AuraFrame.OculusMasqueRegistered then
+        MasqueGroup:AddButton(AuraFrame, {
+            Icon = AuraFrame.Icon or AuraFrame.icon,
+            Cooldown = AuraFrame.cooldown or AuraFrame.Cooldown,
+            Normal = AuraFrame:GetNormalTexture(),
+            Border = AuraFrame.Border or AuraFrame.border,
+        })
+        AuraFrame.OculusMasqueRegistered = true
+    end
+end
+
 -- Create or get expiring border for an aura frame
 local function GetExpiringBorder(AuraFrame)
     if not AuraFrame.OculusExpiringBorder then
-        local Border = AuraFrame:CreateTexture(nil, "OVERLAY")
+        local Border = AuraFrame:CreateTexture(nil, "OVERLAY", nil, 7)
         Border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
         Border:SetBlendMode("ADD")
         Border:SetAlpha(0.8)
@@ -135,6 +156,9 @@ function Auras:ApplySettings(Frame)
         local ShownIndex = 0
 
         for i, Buff in ipairs(Frame.buffFrames) do
+            -- Register with Masque
+            RegisterWithMasque(Buff)
+
             if Buff:IsShown() then
                 ShownIndex = ShownIndex + 1
                 Buff:SetSize(BuffSize, BuffSize)
@@ -168,6 +192,9 @@ function Auras:ApplySettings(Frame)
         local ShownIndex = 0
 
         for i, Debuff in ipairs(Frame.debuffFrames) do
+            -- Register with Masque
+            RegisterWithMasque(Debuff)
+
             if Debuff:IsShown() then
                 ShownIndex = ShownIndex + 1
                 Debuff:SetSize(DebuffSize, DebuffSize)
