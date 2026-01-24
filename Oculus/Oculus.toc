@@ -6,5 +6,6 @@
 ## SavedVariables: OculusDB
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
+Utils.lua
 Core.lua
 Config.lua
