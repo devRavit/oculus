@@ -66,39 +66,10 @@ local function InitializeDB()
     RaidFrames.DB = Oculus_RaidFramesDB
 end
 
--- Hook CompactUnitFrame
-local HookedFrames = {}
-
-local function HookCompactUnitFrame(Frame)
-    if HookedFrames[Frame] then return end
-    HookedFrames[Frame] = true
-
-    -- Apply aura settings when frame updates
-    if Addon.Auras and Addon.Auras.ApplySettings then
-        hooksecurefunc(Frame, "UpdateAuras", function()
-            Addon.Auras:ApplySettings(Frame)
-        end)
-    end
-end
-
 -- Hook all existing and new CompactUnitFrames
 local function HookAllFrames()
-    -- Hook CompactRaidFrameContainer frames
-    if CompactRaidFrameContainer then
-        hooksecurefunc("CompactUnitFrame_UpdateAll", function(Frame)
-            if Frame and Frame.unit then
-                HookCompactUnitFrame(Frame)
-            end
-        end)
-    end
-
-    -- Hook party frames
-    for i = 1, 5 do
-        local Frame = _G["CompactPartyFrameMember" .. i]
-        if Frame then
-            HookCompactUnitFrame(Frame)
-        end
-    end
+    -- Auras.lua handles the CompactUnitFrame_UpdateAuras hook
+    -- Nothing else needed here for now
 end
 
 -- Enable Module
