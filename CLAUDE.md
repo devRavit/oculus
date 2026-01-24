@@ -565,9 +565,9 @@ local function GetUnitInfo(unit)
 end
 ```
 
-### 설정 병합 패턴 (DB + Default)
+### 설정 병합 패턴 (Storage + Default)
 
-SavedVariables(DB)와 기본값(Default)을 병합하여 설정 객체를 구성한다.
+SavedVariables(Storage)와 기본값(Default)을 병합하여 설정 객체를 구성한다.
 
 #### 기본 문법
 
@@ -604,8 +604,8 @@ local Defaults = {
     },
 }
 
--- DB (SavedVariables): flat 구조 (저장 용이)
--- OculusDB = {
+-- Storage (SavedVariables): flat 구조 (저장 용이)
+-- OculusStorage = {
 --     BuffSize = 32,
 --     DebuffsPerRow = 6,
 --     ShowTimer = false,
@@ -622,26 +622,26 @@ local Defaults = {
 local Config = {}
 
 local function BuildConfig()
-    local DB = OculusDB or {}
+    local storage = OculusStorage or {}
 
     Config.Buff = {
-        Size = DB.BuffSize or Defaults.Buff.Size,
-        PerRow = DB.BuffsPerRow or Defaults.Buff.PerRow,
-        Anchor = DB.BuffAnchor or Defaults.Buff.Anchor,
-        UseCustomPosition = DB.UseCustomBuffPosition or Defaults.Buff.UseCustomPosition,
+        Size = storage.BuffSize or Defaults.Buff.Size,
+        PerRow = storage.BuffsPerRow or Defaults.Buff.PerRow,
+        Anchor = storage.BuffAnchor or Defaults.Buff.Anchor,
+        UseCustomPosition = storage.UseCustomBuffPosition or Defaults.Buff.UseCustomPosition,
     }
 
     Config.Debuff = {
-        Size = DB.DebuffSize or Defaults.Debuff.Size,
-        PerRow = DB.DebuffsPerRow or Defaults.Debuff.PerRow,
-        Anchor = DB.DebuffAnchor or Defaults.Debuff.Anchor,
-        UseCustomPosition = DB.UseCustomDebuffPosition or Defaults.Debuff.UseCustomPosition,
+        Size = storage.DebuffSize or Defaults.Debuff.Size,
+        PerRow = storage.DebuffsPerRow or Defaults.Debuff.PerRow,
+        Anchor = storage.DebuffAnchor or Defaults.Debuff.Anchor,
+        UseCustomPosition = storage.UseCustomDebuffPosition or Defaults.Debuff.UseCustomPosition,
     }
 
     -- boolean 값: nil 체크 필요 (false와 구분)
     Config.Timer = {
-        Show = (DB.ShowTimer == nil) and Defaults.Timer.Show or DB.ShowTimer,
-        ExpiringThreshold = DB.ExpiringThreshold or Defaults.Timer.ExpiringThreshold,
+        Show = (storage.ShowTimer == nil) and Defaults.Timer.Show or storage.ShowTimer,
+        ExpiringThreshold = storage.ExpiringThreshold or Defaults.Timer.ExpiringThreshold,
     }
 
     return Config
@@ -653,14 +653,14 @@ end
 ```lua
 -- or 패턴은 false를 nil로 취급하므로 주의
 
--- Bad: DB.ShowTimer가 false면 Defaults 사용됨
-Show = DB.ShowTimer or Defaults.Timer.Show,
+-- Bad: storage.ShowTimer가 false면 Defaults 사용됨
+Show = storage.ShowTimer or Defaults.Timer.Show,
 
 -- Good: nil 체크로 false 구분
-Show = (DB.ShowTimer == nil) and Defaults.Timer.Show or DB.ShowTimer,
+Show = (storage.ShowTimer == nil) and Defaults.Timer.Show or storage.ShowTimer,
 
 -- 또는 삼항 패턴
-Show = DB.ShowTimer ~= nil and DB.ShowTimer or Defaults.Timer.Show,
+Show = storage.ShowTimer ~= nil and storage.ShowTimer or Defaults.Timer.Show,
 ```
 
 #### 사용 예시
@@ -676,19 +676,19 @@ local debuffSize = Config.Debuff.Size
 local showTimer = Config.Timer.Show
 local buffsPerRow = Config.Buff.PerRow
 
--- 설정 변경 시 DB 업데이트 + 리빌드
+-- 설정 변경 시 Storage 업데이트 + 리빌드
 local function SetDebuffSize(size)
-    OculusDB = OculusDB or {}
-    OculusDB.DebuffSize = size
+    OculusStorage = OculusStorage or {}
+    OculusStorage.DebuffSize = size
     BuildConfig()  -- Config 갱신
 end
 ```
 
-#### DB 키 네이밍 규칙
+#### Storage 키 네이밍 규칙
 
 ```lua
 -- Flat 구조: 그룹명 + 속성명
-OculusDB = {
+OculusStorage = {
     -- Buff 그룹
     BuffSize = 24,
     BuffsPerRow = 8,
@@ -718,7 +718,7 @@ OculusDB = {
     Config.lua
 
     설정 관리 모듈
-    - 메타테이블: 자동 DB/Default 폴백
+    - 메타테이블: 자동 Storage/Default 폴백
     - getter/setter: 명시적 접근
     - 옵저버: 설정 변경 시 콜백 호출
 ]]
