@@ -584,8 +584,10 @@ local config = {
 #### 구조 설계
 
 ```lua
--- Defaults: 중첩 구조 (논리적 그룹화)
-local Defaults = {
+-- 모든 구조를 중첩 형태로 통일
+
+-- Defaults: 중첩 구조
+local DEFAULTS = {
     Buff = {
         Size = 24,
         PerRow = 8,
@@ -604,19 +606,48 @@ local Defaults = {
     },
 }
 
--- Storage (SavedVariables): flat 구조 (저장 용이)
+-- Storage (SavedVariables): 중첩 구조
 -- OculusStorage = {
---     BuffSize = 32,
---     DebuffsPerRow = 6,
---     ShowTimer = false,
+--     Buff = {
+--         Size = 32,
+--     },
+--     Timer = {
+--         Show = false,
+--     },
 -- }
 
--- Config: 중첩 구조 (사용 편의)
+-- Config: 중첩 구조 (Storage + Defaults 병합 결과)
 -- Config.Buff.Size
 -- Config.Timer.Show
 ```
 
-#### 빌드 함수 (권장 패턴)
+#### 깊은 병합 함수
+
+```lua
+-- 재귀적으로 Storage와 Defaults 병합
+local function DeepMerge(defaults, storage)
+    if type(defaults) ~= "table" then
+        -- 기본값이 테이블이 아니면 storage 값 또는 defaults 반환
+        if storage ~= nil then
+            return storage
+        end
+        return defaults
+    end
+
+    if type(storage) ~= "table" then
+        -- storage가 없으면 defaults 복사
+        storage = {}
+    end
+
+    local result = {}
+    for key, defaultValue in pairs(defaults) do
+        result[key] = DeepMerge(defaultValue, storage[key])
+    end
+    return result
+end
+```
+
+#### 빌드 함수
 
 ```lua
 local Config = {}
@@ -625,25 +656,34 @@ local function BuildConfig()
     local storage = OculusStorage or {}
 
     Config.Buff = {
-        Size = storage.BuffSize or Defaults.Buff.Size,
-        PerRow = storage.BuffsPerRow or Defaults.Buff.PerRow,
-        Anchor = storage.BuffAnchor or Defaults.Buff.Anchor,
-        UseCustomPosition = storage.UseCustomBuffPosition or Defaults.Buff.UseCustomPosition,
+        Size = storage.Buff and storage.Buff.Size or DEFAULTS.Buff.Size,
+        PerRow = storage.Buff and storage.Buff.PerRow or DEFAULTS.Buff.PerRow,
+        Anchor = storage.Buff and storage.Buff.Anchor or DEFAULTS.Buff.Anchor,
+        UseCustomPosition = storage.Buff and storage.Buff.UseCustomPosition
+            or DEFAULTS.Buff.UseCustomPosition,
     }
 
     Config.Debuff = {
-        Size = storage.DebuffSize or Defaults.Debuff.Size,
-        PerRow = storage.DebuffsPerRow or Defaults.Debuff.PerRow,
-        Anchor = storage.DebuffAnchor or Defaults.Debuff.Anchor,
-        UseCustomPosition = storage.UseCustomDebuffPosition or Defaults.Debuff.UseCustomPosition,
+        Size = storage.Debuff and storage.Debuff.Size or DEFAULTS.Debuff.Size,
+        PerRow = storage.Debuff and storage.Debuff.PerRow or DEFAULTS.Debuff.PerRow,
+        Anchor = storage.Debuff and storage.Debuff.Anchor or DEFAULTS.Debuff.Anchor,
+        UseCustomPosition = storage.Debuff and storage.Debuff.UseCustomPosition
+            or DEFAULTS.Debuff.UseCustomPosition,
     }
 
-    -- boolean 값: nil 체크 필요 (false와 구분)
+    -- boolean 값: nil 체크 필요
+    local timerStorage = storage.Timer or {}
     Config.Timer = {
-        Show = (storage.ShowTimer == nil) and Defaults.Timer.Show or storage.ShowTimer,
-        ExpiringThreshold = storage.ExpiringThreshold or Defaults.Timer.ExpiringThreshold,
+        Show = (timerStorage.Show == nil) and DEFAULTS.Timer.Show or timerStorage.Show,
+        ExpiringThreshold = timerStorage.ExpiringThreshold or DEFAULTS.Timer.ExpiringThreshold,
     }
 
+    return Config
+end
+
+-- 또는 DeepMerge 사용 (간결)
+local function BuildConfig()
+    Config = DeepMerge(DEFAULTS, OculusStorage or {})
     return Config
 end
 ```
@@ -652,15 +692,13 @@ end
 
 ```lua
 -- or 패턴은 false를 nil로 취급하므로 주의
+local timerStorage = storage.Timer or {}
 
--- Bad: storage.ShowTimer가 false면 Defaults 사용됨
-Show = storage.ShowTimer or Defaults.Timer.Show,
+-- Bad: timerStorage.Show가 false면 DEFAULTS 사용됨
+Show = timerStorage.Show or DEFAULTS.Timer.Show,
 
 -- Good: nil 체크로 false 구분
-Show = (storage.ShowTimer == nil) and Defaults.Timer.Show or storage.ShowTimer,
-
--- 또는 삼항 패턴
-Show = storage.ShowTimer ~= nil and storage.ShowTimer or Defaults.Timer.Show,
+Show = (timerStorage.Show == nil) and DEFAULTS.Timer.Show or timerStorage.Show,
 ```
 
 #### 사용 예시
@@ -679,31 +717,33 @@ local buffsPerRow = Config.Buff.PerRow
 -- 설정 변경 시 Storage 업데이트 + 리빌드
 local function SetDebuffSize(size)
     OculusStorage = OculusStorage or {}
-    OculusStorage.DebuffSize = size
-    BuildConfig()  -- Config 갱신
+    OculusStorage.Debuff = OculusStorage.Debuff or {}
+    OculusStorage.Debuff.Size = size
+    BuildConfig()
 end
 ```
 
-#### Storage 키 네이밍 규칙
+#### Storage 구조
 
 ```lua
--- Flat 구조: 그룹명 + 속성명
+-- 중첩 구조: 그룹 > 속성
 OculusStorage = {
-    -- Buff 그룹
-    BuffSize = 24,
-    BuffsPerRow = 8,
-    BuffAnchor = "TOPRIGHT",
-    UseCustomBuffPosition = false,
-
-    -- Debuff 그룹
-    DebuffSize = 24,
-    DebuffsPerRow = 8,
-    DebuffAnchor = "TOPRIGHT",
-    UseCustomDebuffPosition = false,
-
-    -- Timer 그룹
-    ShowTimer = true,
-    ExpiringThreshold = 5,
+    Buff = {
+        Size = 24,
+        PerRow = 8,
+        Anchor = "TOPRIGHT",
+        UseCustomPosition = false,
+    },
+    Debuff = {
+        Size = 24,
+        PerRow = 8,
+        Anchor = "TOPRIGHT",
+        UseCustomPosition = false,
+    },
+    Timer = {
+        Show = true,
+        ExpiringThreshold = 5,
+    },
 }
 ```
 
@@ -746,19 +786,6 @@ local DEFAULTS = {
     },
 }
 
--- DB 키 매핑: Config 경로 -> DB 키
-local DB_KEY_MAP = {
-    ["Buff.Size"] = "BuffSize",
-    ["Buff.PerRow"] = "BuffsPerRow",
-    ["Buff.Anchor"] = "BuffAnchor",
-    ["Buff.UseCustomPosition"] = "UseCustomBuffPosition",
-    ["Debuff.Size"] = "DebuffSize",
-    ["Debuff.PerRow"] = "DebuffsPerRow",
-    ["Debuff.Anchor"] = "DebuffAnchor",
-    ["Debuff.UseCustomPosition"] = "UseCustomDebuffPosition",
-    ["Timer.Show"] = "ShowTimer",
-    ["Timer.ExpiringThreshold"] = "ExpiringThreshold",
-}
 
 
 -- 지역 변수
@@ -771,15 +798,12 @@ local Config = {}
 Config.__index = Config
 
 
--- Private: DB 참조 가져오기
-local function GetDB()
-    return OculusDB or {}
-end
+-- Private: 경로로 값 가져오기 (중첩 구조)
+local function GetByPath(tbl, path)
+    if not tbl then return nil end
 
--- Private: 경로로 기본값 가져오기
-local function GetDefault(path)
     local parts = { strsplit(".", path) }
-    local value = DEFAULTS
+    local value = tbl
 
     for _, part in ipairs(parts) do
         if type(value) ~= "table" then
@@ -791,43 +815,52 @@ local function GetDefault(path)
     return value
 end
 
+-- Private: 경로로 값 설정하기 (중첩 구조)
+local function SetByPath(tbl, path, value)
+    local parts = { strsplit(".", path) }
+    local current = tbl
+
+    -- 마지막 키 전까지 경로 생성
+    for i = 1, #parts - 1 do
+        local part = parts[i]
+        if current[part] == nil then
+            current[part] = {}
+        end
+        current = current[part]
+    end
+
+    -- 마지막 키에 값 설정
+    current[parts[#parts]] = value
+end
+
 -- Private: 값 비교 (boolean 처리)
-local function GetValueWithDefault(dbValue, defaultValue)
-    if dbValue == nil then
+local function GetValueWithDefault(storageValue, defaultValue)
+    if storageValue == nil then
         return defaultValue
     end
-    return dbValue
+    return storageValue
 end
 
 
 -- Public: 값 가져오기
 function Config:Get(path)
-    local dbKey = DB_KEY_MAP[path]
-    if not dbKey then
-        error("Unknown config path: " .. path)
-    end
+    local storage = OculusStorage or {}
+    local storageValue = GetByPath(storage, path)
+    local defaultValue = GetByPath(DEFAULTS, path)
 
-    local db = GetDB()
-    local defaultValue = GetDefault(path)
-
-    return GetValueWithDefault(db[dbKey], defaultValue)
+    return GetValueWithDefault(storageValue, defaultValue)
 end
 
 -- Public: 값 설정하기
 function Config:Set(path, value)
-    local dbKey = DB_KEY_MAP[path]
-    if not dbKey then
-        error("Unknown config path: " .. path)
-    end
-
-    -- DB 초기화
-    OculusDB = OculusDB or {}
+    -- Storage 초기화
+    OculusStorage = OculusStorage or {}
 
     -- 이전 값 저장 (옵저버용)
     local oldValue = self:Get(path)
 
-    -- DB 업데이트
-    OculusDB[dbKey] = value
+    -- Storage 업데이트 (중첩 경로 자동 생성)
+    SetByPath(OculusStorage, path, value)
 
     -- 캐시 무효화
     configCache = nil
@@ -844,7 +877,7 @@ end
 
 -- Public: 전체 리셋
 function Config:ResetAll()
-    OculusDB = {}
+    OculusStorage = {}
     configCache = nil
     self:_NotifyObservers("*", nil, nil)
 end
@@ -1039,15 +1072,13 @@ local DEFAULTS = {
     },
 }
 
--- 2. DB_KEY_MAP에 매핑 추가
-local DB_KEY_MAP = {
-    -- ...기존 매핑
-    ["NewGroup.NewSetting"] = "NewGroupNewSetting",
-}
-
--- 3. 사용
+-- 2. 사용 (매핑 필요 없음, 중첩 경로 자동 처리)
 local value = Config.NewGroup.NewSetting
 Config.NewGroup.NewSetting = "newValue"
+
+-- getter/setter로도 사용 가능
+Config:Get("NewGroup.NewSetting")
+Config:Set("NewGroup.NewSetting", "newValue")
 ```
 
 ---
