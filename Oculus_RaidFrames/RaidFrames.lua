@@ -23,6 +23,8 @@ local Defaults = {
         MaxDebuffs = 3,
         BuffRows = 1,
         DebuffRows = 1,
+        ShowTimer = true,
+        ExpiringThreshold = 0.25, -- 25% remaining triggers border glow
     },
     Cooldowns = {
         Enabled = false,
