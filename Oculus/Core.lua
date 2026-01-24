@@ -4,8 +4,8 @@
 local AddonName, Oculus = ...
 local L = Oculus.L
 
--- Version
-Oculus.Version = "0.1.0"
+-- Version (read from TOC)
+Oculus.Version = C_AddOns.GetAddOnMetadata(AddonName, "Version") or "0.0.0"
 
 -- Saved Variables (will be loaded from OculusDB)
 Oculus.DB = {}
