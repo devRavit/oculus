@@ -2,7 +2,7 @@
 ## Title: Oculus - RaidFrames
 ## Notes: Raid/Party Frame Enhancements
 ## Author: RAVIT
-## Version: 0.1.0
+## Version: 0.1.1
 ## Dependencies: Oculus
 ## OptionalDeps: Masque
 ## SavedVariables: Oculus_RaidFramesDB
