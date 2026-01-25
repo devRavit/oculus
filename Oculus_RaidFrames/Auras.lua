@@ -1,28 +1,53 @@
 -- Oculus RaidFrames - Auras
 -- Buff/Debuff display configuration
 
-local AddonName, Addon = ...
-local RaidFrames = Addon.RaidFrames
+local addonName, addon = ...
+
+
+-- Lua API Localization
+local pairs = pairs
+local ipairs = ipairs
+local pcall = pcall
+local math = math
+local string = string
+local print = print
+
+-- WoW API Localization
+local LibStub = LibStub
+local GetTime = GetTime
+local C_Timer = C_Timer
+local C_UnitAuras = C_UnitAuras
+local hooksecurefunc = hooksecurefunc
+local CompactRaidFrameContainer = CompactRaidFrameContainer
+local STANDARD_TEXT_FONT = STANDARD_TEXT_FONT
+
+
+-- Module References
+local RaidFrames = addon.RaidFrames
 local Oculus = _G["Oculus"]
+
 
 -- Auras Module
 local Auras = {}
-Addon.Auras = Auras
+addon.Auras = Auras
+
 
 -- State (accessible externally via Auras.IsEnabled)
 Auras.IsEnabled = false
-local IsEnabled = false  -- Local cache for performance
+local isEnabled = false  -- Local cache for performance
+
 
 -- Masque Support
 local Masque = LibStub and LibStub("Masque", true)
-local MasqueGroup = nil
+local masqueGroup = nil
 
 if Masque then
-    MasqueGroup = Masque:Group("Oculus", "Raid Auras")
+    masqueGroup = Masque:Group("Oculus", "Raid Auras")
 end
 
--- Default settings (structured)
-local Defaults = {
+
+-- Constants
+local DEFAULTS = {
     Buff = {
         Size = 20,
         PerRow = 3,
@@ -41,271 +66,272 @@ local Defaults = {
     },
 }
 
--- Get raw DB reference
-local function GetRawDB()
-    local RF = Addon.RaidFrames
-    if not RF then return nil end
 
-    if RF.GetDB then
-        local RFDb = RF:GetDB()
-        return RFDb and RFDb.Auras
+-- Get raw DB reference
+local function getRawDB()
+    local rf = addon.RaidFrames
+    if not rf then return nil end
+
+    if rf.GetDB then
+        local rfDb = rf:GetDB()
+        return rfDb and rfDb.Auras
     end
 
-    return RF.DB and RF.DB.Auras
+    return rf.DB and rf.DB.Auras
 end
 
 -- Build configuration from DB with defaults
-local function BuildConfig()
-    local DB = GetRawDB() or {}
+local function buildConfig()
+    local db = getRawDB() or {}
 
     return {
         Buff = {
-            Size = DB.BuffSize or Defaults.Buff.Size,
-            PerRow = DB.BuffsPerRow or Defaults.Buff.PerRow,
-            Anchor = DB.BuffAnchor or Defaults.Buff.Anchor,
-            UseCustomPosition = DB.UseCustomBuffPosition or Defaults.Buff.UseCustomPosition,
+            Size = db.BuffSize or DEFAULTS.Buff.Size,
+            PerRow = db.BuffsPerRow or DEFAULTS.Buff.PerRow,
+            Anchor = db.BuffAnchor or DEFAULTS.Buff.Anchor,
+            UseCustomPosition = db.UseCustomBuffPosition or DEFAULTS.Buff.UseCustomPosition,
         },
         Debuff = {
-            Size = DB.DebuffSize or Defaults.Debuff.Size,
-            PerRow = DB.DebuffsPerRow or Defaults.Debuff.PerRow,
-            Anchor = DB.DebuffAnchor or Defaults.Debuff.Anchor,
-            UseCustomPosition = DB.UseCustomDebuffPosition or Defaults.Debuff.UseCustomPosition,
+            Size = db.DebuffSize or DEFAULTS.Debuff.Size,
+            PerRow = db.DebuffsPerRow or DEFAULTS.Debuff.PerRow,
+            Anchor = db.DebuffAnchor or DEFAULTS.Debuff.Anchor,
+            UseCustomPosition = db.UseCustomDebuffPosition or DEFAULTS.Debuff.UseCustomPosition,
         },
         Timer = {
-            Show = (DB.ShowTimer == nil) and Defaults.Timer.Show or DB.ShowTimer,
-            ExpiringThreshold = DB.ExpiringThreshold or Defaults.Timer.ExpiringThreshold,
+            Show = (db.ShowTimer == nil) and DEFAULTS.Timer.Show or db.ShowTimer,
+            ExpiringThreshold = db.ExpiringThreshold or DEFAULTS.Timer.ExpiringThreshold,
         },
     }
 end
 
 -- Legacy GetDB for backward compatibility
-local function GetDB()
-    return GetRawDB()
+local function getDB()
+    return getRawDB()
 end
 
 -- Create or get timer text for an aura frame
-local function GetTimerText(AuraFrame)
-    if not AuraFrame.OculusTimer then
-        local Timer = AuraFrame:CreateFontString(nil, "OVERLAY")
-        Timer:SetFont(STANDARD_TEXT_FONT, 10, "OUTLINE")
-        Timer:SetPoint("CENTER", AuraFrame, "CENTER", 0, 0)
-        Timer:SetTextColor(1, 1, 0.6)
-        AuraFrame.OculusTimer = Timer
+local function getTimerText(auraFrame)
+    if not auraFrame.OculusTimer then
+        local timer = auraFrame:CreateFontString(nil, "OVERLAY")
+        timer:SetFont(STANDARD_TEXT_FONT, 10, "OUTLINE")
+        timer:SetPoint("CENTER", auraFrame, "CENTER", 0, 0)
+        timer:SetTextColor(1, 1, 0.6)
+        auraFrame.OculusTimer = timer
     end
-    return AuraFrame.OculusTimer
+    return auraFrame.OculusTimer
 end
 
 -- Update timer font size based on aura size
-local function UpdateTimerFontSize(AuraFrame)
-    if AuraFrame.OculusTimer then
-        local Size = AuraFrame:GetWidth()
-        local FontSize = math.max(8, math.floor(Size * 0.45))
-        AuraFrame.OculusTimer:SetFont(STANDARD_TEXT_FONT, FontSize, "OUTLINE")
+local function updateTimerFontSize(auraFrame)
+    if auraFrame.OculusTimer then
+        local size = auraFrame:GetWidth()
+        local fontSize = math.max(8, math.floor(size * 0.45))
+        auraFrame.OculusTimer:SetFont(STANDARD_TEXT_FONT, fontSize, "OUTLINE")
     end
 end
 
 -- Register aura frame with Masque
-local function RegisterWithMasque(AuraFrame)
-    if MasqueGroup and not AuraFrame.OculusMasqueRegistered then
-        MasqueGroup:AddButton(AuraFrame, {
-            Icon = AuraFrame.Icon or AuraFrame.icon,
-            Cooldown = AuraFrame.cooldown or AuraFrame.Cooldown,
-            Normal = AuraFrame:GetNormalTexture(),
-            Border = AuraFrame.Border or AuraFrame.border,
+local function registerWithMasque(auraFrame)
+    if masqueGroup and not auraFrame.OculusMasqueRegistered then
+        masqueGroup:AddButton(auraFrame, {
+            Icon = auraFrame.Icon or auraFrame.icon,
+            Cooldown = auraFrame.cooldown or auraFrame.Cooldown,
+            Normal = auraFrame:GetNormalTexture(),
+            Border = auraFrame.Border or auraFrame.border,
         })
-        AuraFrame.OculusMasqueRegistered = true
+        auraFrame.OculusMasqueRegistered = true
     end
 end
 
 -- Create or get expiring border for an aura frame
-local function GetExpiringBorder(AuraFrame)
-    if not AuraFrame.OculusExpiringBorder then
-        local Border = AuraFrame:CreateTexture(nil, "OVERLAY", nil, 7)
-        Border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        Border:SetBlendMode("ADD")
-        Border:SetAlpha(0.8)
-        Border:SetPoint("CENTER", AuraFrame, "CENTER", 0, 0)
-        Border:SetSize(AuraFrame:GetWidth() * 1.5, AuraFrame:GetHeight() * 1.5)
-        Border:SetVertexColor(1, 0.3, 0.3) -- Red glow
-        Border:Hide()
-        AuraFrame.OculusExpiringBorder = Border
+local function getExpiringBorder(auraFrame)
+    if not auraFrame.OculusExpiringBorder then
+        local border = auraFrame:CreateTexture(nil, "OVERLAY", nil, 7)
+        border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        border:SetBlendMode("ADD")
+        border:SetAlpha(0.8)
+        border:SetPoint("CENTER", auraFrame, "CENTER", 0, 0)
+        border:SetSize(auraFrame:GetWidth() * 1.5, auraFrame:GetHeight() * 1.5)
+        border:SetVertexColor(1, 0.3, 0.3) -- Red glow
+        border:Hide()
+        auraFrame.OculusExpiringBorder = border
     end
-    return AuraFrame.OculusExpiringBorder
+    return auraFrame.OculusExpiringBorder
 end
 
 -- Format time for display
-local function FormatTime(Seconds)
-    if Seconds >= 60 then
-        return string.format("%dm", math.ceil(Seconds / 60))
-    elseif Seconds >= 10 then
-        return string.format("%d", math.ceil(Seconds))
+local function formatTime(seconds)
+    if seconds >= 60 then
+        return string.format("%dm", math.ceil(seconds / 60))
+    elseif seconds >= 10 then
+        return string.format("%d", math.ceil(seconds))
     else
-        return string.format("%.1f", Seconds)
+        return string.format("%.1f", seconds)
     end
 end
 
 -- Calculate offset based on anchor point
-function Auras:CalculateAnchorOffset(Anchor, Col, Row, Size, Spacing, PerRow)
-    local TotalWidth = PerRow * Size + (PerRow - 1) * Spacing
-    local XOffset, YOffset = 0, 0
+function Auras:CalculateAnchorOffset(anchor, col, row, size, spacing, perRow)
+    local totalWidth = perRow * size + (perRow - 1) * spacing
+    local xOffset, yOffset = 0, 0
 
     -- X offset calculation
-    if Anchor == "TOPLEFT" or Anchor == "LEFT" or Anchor == "BOTTOMLEFT" then
-        XOffset = Col * (Size + Spacing) + 2
-    elseif Anchor == "TOPRIGHT" or Anchor == "RIGHT" or Anchor == "BOTTOMRIGHT" then
-        XOffset = -(Col * (Size + Spacing) + 2)
+    if anchor == "TOPLEFT" or anchor == "LEFT" or anchor == "BOTTOMLEFT" then
+        xOffset = col * (size + spacing) + 2
+    elseif anchor == "TOPRIGHT" or anchor == "RIGHT" or anchor == "BOTTOMRIGHT" then
+        xOffset = -(col * (size + spacing) + 2)
     else -- CENTER, TOP, BOTTOM
-        local StartX = -TotalWidth / 2 + Size / 2
-        XOffset = StartX + Col * (Size + Spacing)
+        local startX = -totalWidth / 2 + size / 2
+        xOffset = startX + col * (size + spacing)
     end
 
     -- Y offset calculation
-    if Anchor == "TOPLEFT" or Anchor == "TOP" or Anchor == "TOPRIGHT" then
-        YOffset = -(Row * (Size + Spacing) + 2)
-    elseif Anchor == "BOTTOMLEFT" or Anchor == "BOTTOM" or Anchor == "BOTTOMRIGHT" then
-        YOffset = Row * (Size + Spacing) + 2
+    if anchor == "TOPLEFT" or anchor == "TOP" or anchor == "TOPRIGHT" then
+        yOffset = -(row * (size + spacing) + 2)
+    elseif anchor == "BOTTOMLEFT" or anchor == "BOTTOM" or anchor == "BOTTOMRIGHT" then
+        yOffset = row * (size + spacing) + 2
     else -- LEFT, CENTER, RIGHT
-        YOffset = -(Row * (Size + Spacing))
+        yOffset = -(row * (size + spacing))
     end
 
-    return XOffset, YOffset
+    return xOffset, yOffset
 end
 
 -- Update timer and expiring state for an aura
-local function UpdateAuraTimer(AuraFrame, ExpirationTime, Duration, Config)
-    if not Config then
-        Config = BuildConfig()
+local function updateAuraTimer(auraFrame, expirationTime, duration, config)
+    if not config then
+        config = buildConfig()
     end
 
-    local ShowTimer = Config.Timer.Show
-    local ExpiringThreshold = Config.Timer.ExpiringThreshold
+    local showTimer = config.Timer.Show
+    local expiringThreshold = config.Timer.ExpiringThreshold
 
-    local Timer = GetTimerText(AuraFrame)
-    local Border = GetExpiringBorder(AuraFrame)
+    local timer = getTimerText(auraFrame)
+    local border = getExpiringBorder(auraFrame)
 
     -- Hide Blizzard's default cooldown text
-    if AuraFrame.cooldown then
-        AuraFrame.cooldown:SetHideCountdownNumbers(true)
+    if auraFrame.cooldown then
+        auraFrame.cooldown:SetHideCountdownNumbers(true)
     end
 
     -- Update sizes to match current aura size
-    UpdateTimerFontSize(AuraFrame)
-    Border:SetSize(AuraFrame:GetWidth() * 1.5, AuraFrame:GetHeight() * 1.5)
+    updateTimerFontSize(auraFrame)
+    border:SetSize(auraFrame:GetWidth() * 1.5, auraFrame:GetHeight() * 1.5)
 
     -- Safely check if values are valid (protected auras have secret values that can't be compared)
-    local Success, Remaining = pcall(function()
-        if ExpirationTime and Duration and ExpirationTime > 0 and Duration > 0 then
-            return ExpirationTime - GetTime()
+    local success, remaining = pcall(function()
+        if expirationTime and duration and expirationTime > 0 and duration > 0 then
+            return expirationTime - GetTime()
         end
         return nil
     end)
 
-    if Success and Remaining and Remaining > 0 then
+    if success and remaining and remaining > 0 then
         -- Show timer
-        if ShowTimer then
-            Timer:SetText(FormatTime(Remaining))
-            Timer:Show()
+        if showTimer then
+            timer:SetText(formatTime(remaining))
+            timer:Show()
         else
-            Timer:Hide()
+            timer:Hide()
         end
 
         -- Check if expiring (< threshold remaining)
-        local RemainingPercent = Remaining / Duration
-        if RemainingPercent < ExpiringThreshold then
-            Border:Show()
+        local remainingPercent = remaining / duration
+        if remainingPercent < expiringThreshold then
+            border:Show()
             -- Pulse effect based on remaining time
-            local Pulse = 0.5 + 0.5 * math.sin(GetTime() * 4)
-            Border:SetAlpha(0.5 + Pulse * 0.5)
+            local pulse = 0.5 + 0.5 * math.sin(GetTime() * 4)
+            border:SetAlpha(0.5 + pulse * 0.5)
         else
-            Border:Hide()
+            border:Hide()
         end
     else
         -- No valid duration (permanent buff or protected aura)
-        Timer:Hide()
-        Border:Hide()
+        timer:Hide()
+        border:Hide()
     end
 end
 
 -- Apply aura settings to a CompactUnitFrame
-function Auras:ApplySettings(Frame)
-    if not IsEnabled then return end
-    if not Frame then return end
-    if not Frame.unit then return end
+function Auras:ApplySettings(frame)
+    if not isEnabled then return end
+    if not frame then return end
+    if not frame.unit then return end
 
-    local Cfg = BuildConfig()
-    local Unit = Frame.unit
-    local Spacing = 2
+    local cfg = buildConfig()
+    local unit = frame.unit
+    local spacing = 2
 
     -- Apply buff settings with optional custom positioning
-    if Frame.buffFrames then
-        local BuffSize = Cfg.Buff.Size
-        local BuffsPerRow = Cfg.Buff.PerRow
-        local BuffAnchor = Cfg.Buff.Anchor
-        local UseCustomPosition = Cfg.Buff.UseCustomPosition
+    if frame.buffFrames then
+        local buffSize = cfg.Buff.Size
+        local buffsPerRow = cfg.Buff.PerRow
+        local buffAnchor = cfg.Buff.Anchor
+        local useCustomPosition = cfg.Buff.UseCustomPosition
 
-        for i, Buff in ipairs(Frame.buffFrames) do
+        for i, buff in ipairs(frame.buffFrames) do
             -- Always set size
-            Buff:SetSize(BuffSize, BuffSize)
+            buff:SetSize(buffSize, buffSize)
 
             -- Only reposition if custom positioning is enabled
-            if UseCustomPosition and Buff:IsShown() then
-                local Col = (i - 1) % BuffsPerRow
-                local Row = math.floor((i - 1) / BuffsPerRow)
-                local XOffset, YOffset = self:CalculateAnchorOffset(
-                    BuffAnchor, Col, Row, BuffSize, Spacing, BuffsPerRow
+            if useCustomPosition and buff:IsShown() then
+                local col = (i - 1) % buffsPerRow
+                local row = math.floor((i - 1) / buffsPerRow)
+                local xOffset, yOffset = self:CalculateAnchorOffset(
+                    buffAnchor, col, row, buffSize, spacing, buffsPerRow
                 )
-                Buff:ClearAllPoints()
-                Buff:SetPoint(BuffAnchor, Frame, BuffAnchor, XOffset, YOffset)
+                buff:ClearAllPoints()
+                buff:SetPoint(buffAnchor, frame, buffAnchor, xOffset, yOffset)
             end
 
-            if Buff:IsShown() then
-                RegisterWithMasque(Buff)
-                if Buff.auraInstanceID then
-                    local AuraData = C_UnitAuras.GetAuraDataByAuraInstanceID(Unit, Buff.auraInstanceID)
-                    if AuraData then
-                        UpdateAuraTimer(Buff, AuraData.expirationTime, AuraData.duration, Cfg)
+            if buff:IsShown() then
+                registerWithMasque(buff)
+                if buff.auraInstanceID then
+                    local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, buff.auraInstanceID)
+                    if auraData then
+                        updateAuraTimer(buff, auraData.expirationTime, auraData.duration, cfg)
                     end
                 end
             else
-                if Buff.OculusTimer then Buff.OculusTimer:Hide() end
-                if Buff.OculusExpiringBorder then Buff.OculusExpiringBorder:Hide() end
+                if buff.OculusTimer then buff.OculusTimer:Hide() end
+                if buff.OculusExpiringBorder then buff.OculusExpiringBorder:Hide() end
             end
         end
     end
 
     -- Apply debuff settings with optional custom positioning
-    if Frame.debuffFrames then
-        local DebuffSize = Cfg.Debuff.Size
-        local DebuffsPerRow = Cfg.Debuff.PerRow
-        local DebuffAnchor = Cfg.Debuff.Anchor
-        local UseCustomPosition = Cfg.Debuff.UseCustomPosition
+    if frame.debuffFrames then
+        local debuffSize = cfg.Debuff.Size
+        local debuffsPerRow = cfg.Debuff.PerRow
+        local debuffAnchor = cfg.Debuff.Anchor
+        local useCustomPosition = cfg.Debuff.UseCustomPosition
 
-        for i, Debuff in ipairs(Frame.debuffFrames) do
+        for i, debuff in ipairs(frame.debuffFrames) do
             -- Always set size
-            Debuff:SetSize(DebuffSize, DebuffSize)
+            debuff:SetSize(debuffSize, debuffSize)
 
             -- Only reposition if custom positioning is enabled
-            if UseCustomPosition and Debuff:IsShown() then
-                local Col = (i - 1) % DebuffsPerRow
-                local Row = math.floor((i - 1) / DebuffsPerRow)
-                local XOffset, YOffset = self:CalculateAnchorOffset(
-                    DebuffAnchor, Col, Row, DebuffSize, Spacing, DebuffsPerRow
+            if useCustomPosition and debuff:IsShown() then
+                local col = (i - 1) % debuffsPerRow
+                local row = math.floor((i - 1) / debuffsPerRow)
+                local xOffset, yOffset = self:CalculateAnchorOffset(
+                    debuffAnchor, col, row, debuffSize, spacing, debuffsPerRow
                 )
-                Debuff:ClearAllPoints()
-                Debuff:SetPoint(DebuffAnchor, Frame, DebuffAnchor, XOffset, YOffset)
+                debuff:ClearAllPoints()
+                debuff:SetPoint(debuffAnchor, frame, debuffAnchor, xOffset, yOffset)
             end
 
-            if Debuff:IsShown() then
-                RegisterWithMasque(Debuff)
-                if Debuff.auraInstanceID then
-                    local AuraData = C_UnitAuras.GetAuraDataByAuraInstanceID(Unit, Debuff.auraInstanceID)
-                    if AuraData then
-                        UpdateAuraTimer(Debuff, AuraData.expirationTime, AuraData.duration, Cfg)
+            if debuff:IsShown() then
+                registerWithMasque(debuff)
+                if debuff.auraInstanceID then
+                    local auraData = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, debuff.auraInstanceID)
+                    if auraData then
+                        updateAuraTimer(debuff, auraData.expirationTime, auraData.duration, cfg)
                     end
                 end
             else
-                if Debuff.OculusTimer then Debuff.OculusTimer:Hide() end
-                if Debuff.OculusExpiringBorder then Debuff.OculusExpiringBorder:Hide() end
+                if debuff.OculusTimer then debuff.OculusTimer:Hide() end
+                if debuff.OculusExpiringBorder then debuff.OculusExpiringBorder:Hide() end
             end
         end
     end
@@ -315,56 +341,56 @@ end
 function Auras:RefreshAllFrames()
     -- Refresh CompactRaidFrameContainer
     if CompactRaidFrameContainer then
-        CompactRaidFrameContainer:ApplyToFrames("normal", function(Frame)
-            if Frame and Frame.unit then
-                self:ApplySettings(Frame)
+        CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
+            if frame and frame.unit then
+                self:ApplySettings(frame)
             end
         end)
     end
 
     -- Refresh party frames
     for i = 1, 5 do
-        local Frame = _G["CompactPartyFrameMember" .. i]
-        if Frame then
-            self:ApplySettings(Frame)
+        local frame = _G["CompactPartyFrameMember" .. i]
+        if frame then
+            self:ApplySettings(frame)
         end
     end
 end
 
 -- Enable
 function Auras:Enable()
-    IsEnabled = true
+    isEnabled = true
     self.IsEnabled = true
 
     -- Hook CompactUnitFrame_UpdateAuras with a slight delay to run after Blizzard's code
     if not self.Hooked then
-        hooksecurefunc("CompactUnitFrame_UpdateAuras", function(Frame)
+        hooksecurefunc("CompactUnitFrame_UpdateAuras", function(frame)
             -- Use C_Timer.After(0) to run after current frame's processing
             C_Timer.After(0, function()
-                if IsEnabled and Frame and Frame.unit then
-                    self:ApplySettings(Frame)
+                if isEnabled and frame and frame.unit then
+                    self:ApplySettings(frame)
                 end
             end)
         end)
 
         -- Also hook the buff/debuff setup functions to catch size resets
         if CompactUnitFrame_UtilSetBuff then
-            hooksecurefunc("CompactUnitFrame_UtilSetBuff", function(BuffFrame, ...)
+            hooksecurefunc("CompactUnitFrame_UtilSetBuff", function(buffFrame, ...)
                 C_Timer.After(0, function()
-                    if IsEnabled and BuffFrame then
-                        local Cfg = BuildConfig()
-                        BuffFrame:SetSize(Cfg.Buff.Size, Cfg.Buff.Size)
+                    if isEnabled and buffFrame then
+                        local cfg = buildConfig()
+                        buffFrame:SetSize(cfg.Buff.Size, cfg.Buff.Size)
                     end
                 end)
             end)
         end
 
         if CompactUnitFrame_UtilSetDebuff then
-            hooksecurefunc("CompactUnitFrame_UtilSetDebuff", function(DebuffFrame, ...)
+            hooksecurefunc("CompactUnitFrame_UtilSetDebuff", function(debuffFrame, ...)
                 C_Timer.After(0, function()
-                    if IsEnabled and DebuffFrame then
-                        local Cfg = BuildConfig()
-                        DebuffFrame:SetSize(Cfg.Debuff.Size, Cfg.Debuff.Size)
+                    if isEnabled and debuffFrame then
+                        local cfg = buildConfig()
+                        debuffFrame:SetSize(cfg.Debuff.Size, cfg.Debuff.Size)
                     end
                 end)
             end)
@@ -376,7 +402,7 @@ function Auras:Enable()
     -- Start update ticker for timers (every 0.1 sec)
     if not self.UpdateTicker then
         self.UpdateTicker = C_Timer.NewTicker(0.1, function()
-            if IsEnabled then
+            if isEnabled then
                 self:RefreshAllFrames()
             end
         end)
@@ -384,7 +410,7 @@ function Auras:Enable()
 
     -- Initial refresh with delay
     C_Timer.After(1, function()
-        if IsEnabled then
+        if isEnabled then
             self:RefreshAllFrames()
         end
     end)
@@ -394,7 +420,7 @@ end
 
 -- Disable
 function Auras:Disable()
-    IsEnabled = false
+    isEnabled = false
     self.IsEnabled = false
 
     -- Stop update ticker
@@ -406,14 +432,14 @@ end
 
 -- Get current settings (for UI)
 function Auras:GetSettings()
-    return BuildConfig()
+    return buildConfig()
 end
 
 -- Update setting (saves to raw DB)
-function Auras:SetSetting(Key, Value)
-    local DB = GetRawDB()
-    if DB then
-        DB[Key] = Value
+function Auras:SetSetting(key, value)
+    local db = getRawDB()
+    if db then
+        db[key] = value
         self:RefreshAllFrames()
     end
 end

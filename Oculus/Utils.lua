@@ -1,160 +1,175 @@
--- Oculus Utils
--- Utility functions including Base64 encoding/decoding and serialization
+--[[
+    Oculus Utils
+    Utility functions including Base64 encoding/decoding and serialization
+]]
 
-local AddonName, Oculus = ...
+local addonName, Oculus = ...
 
+
+-- Lua API Localization
+local pairs = pairs
+local type = type
+local tostring = tostring
+local table = table
+local string = string
+local math = math
+local loadstring = loadstring
+local pcall = pcall
+
+
+-- Constants
+local BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+
+-- Utils Module
 Oculus.Utils = {}
 local Utils = Oculus.Utils
 
--- Base64 character set
-local Base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
 -- Base64 Encode
-function Utils.Base64Encode(Data)
-    return ((Data:gsub(".", function(X)
-        local R, B = "", X:byte()
-        for I = 8, 1, -1 do
-            R = R .. (B % 2 ^ I - B % 2 ^ (I - 1) > 0 and "1" or "0")
+function Utils.Base64Encode(data)
+    return ((data:gsub(".", function(x)
+        local r, b = "", x:byte()
+        for i = 8, 1, -1 do
+            r = r .. (b % 2 ^ i - b % 2 ^ (i - 1) > 0 and "1" or "0")
         end
-        return R
-    end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(X)
-        if #X < 6 then
+        return r
+    end) .. "0000"):gsub("%d%d%d?%d?%d?%d?", function(x)
+        if #x < 6 then
             return ""
         end
-        local C = 0
-        for I = 1, 6 do
-            C = C + (X:sub(I, I) == "1" and 2 ^ (6 - I) or 0)
+        local c = 0
+        for i = 1, 6 do
+            c = c + (x:sub(i, i) == "1" and 2 ^ (6 - i) or 0)
         end
-        return Base64Chars:sub(C + 1, C + 1)
-    end) .. ({"", "==", "="})[#Data % 3 + 1])
+        return BASE64_CHARS:sub(c + 1, c + 1)
+    end) .. ({"", "==", "="})[#data % 3 + 1])
 end
 
 -- Base64 Decode
-function Utils.Base64Decode(Data)
-    Data = Data:gsub("[^" .. Base64Chars .. "=]", "")
-    return (Data:gsub(".", function(X)
-        if X == "=" then
+function Utils.Base64Decode(data)
+    data = data:gsub("[^" .. BASE64_CHARS .. "=]", "")
+    return (data:gsub(".", function(x)
+        if x == "=" then
             return ""
         end
-        local R, F = "", (Base64Chars:find(X) - 1)
-        for I = 6, 1, -1 do
-            R = R .. (F % 2 ^ I - F % 2 ^ (I - 1) > 0 and "1" or "0")
+        local r, f = "", (BASE64_CHARS:find(x) - 1)
+        for i = 6, 1, -1 do
+            r = r .. (f % 2 ^ i - f % 2 ^ (i - 1) > 0 and "1" or "0")
         end
-        return R
-    end):gsub("%d%d%d?%d?%d?%d?%d?%d?", function(X)
-        if #X ~= 8 then
+        return r
+    end):gsub("%d%d%d?%d?%d?%d?%d?%d?", function(x)
+        if #x ~= 8 then
             return ""
         end
-        local C = 0
-        for I = 1, 8 do
-            C = C + (X:sub(I, I) == "1" and 2 ^ (8 - I) or 0)
+        local c = 0
+        for i = 1, 8 do
+            c = c + (x:sub(i, i) == "1" and 2 ^ (8 - i) or 0)
         end
-        return string.char(C)
+        return string.char(c)
     end))
 end
 
--- Serialize table to string
-function Utils.Serialize(Tbl)
-    local function SerializeValue(Val, Indent)
-        Indent = Indent or ""
-        local ValType = type(Val)
+-- Serialize value (local helper)
+local function serializeValue(val, indent)
+    indent = indent or ""
+    local valType = type(val)
 
-        if ValType == "table" then
-            local Parts = {}
-            local IsArray = true
-            local MaxIndex = 0
+    if valType == "table" then
+        local parts = {}
+        local isArray = true
+        local maxIndex = 0
 
-            -- Check if it's an array
-            for K, _ in pairs(Val) do
-                if type(K) ~= "number" or K < 1 or math.floor(K) ~= K then
-                    IsArray = false
-                    break
-                end
-                if K > MaxIndex then
-                    MaxIndex = K
-                end
+        -- Check if it's an array
+        for k, _ in pairs(val) do
+            if type(k) ~= "number" or k < 1 or math.floor(k) ~= k then
+                isArray = false
+                break
             end
-
-            if IsArray and MaxIndex > 0 then
-                for I = 1, MaxIndex do
-                    table.insert(Parts, SerializeValue(Val[I], Indent .. " "))
-                end
-                return "{" .. table.concat(Parts, ",") .. "}"
-            else
-                for K, V in pairs(Val) do
-                    local Key
-                    if type(K) == "string" then
-                        if K:match("^[%a_][%w_]*$") then
-                            Key = K
-                        else
-                            Key = "[\"" .. K:gsub("\\", "\\\\"):gsub("\"", "\\\"") .. "\"]"
-                        end
-                    else
-                        Key = "[" .. tostring(K) .. "]"
-                    end
-                    table.insert(Parts, Key .. "=" .. SerializeValue(V, Indent .. " "))
-                end
-                return "{" .. table.concat(Parts, ",") .. "}"
+            if k > maxIndex then
+                maxIndex = k
             end
-
-        elseif ValType == "string" then
-            return "\"" .. Val:gsub("\\", "\\\\"):gsub("\"", "\\\""):gsub("\n", "\\n"):gsub("\r", "\\r") .. "\""
-
-        elseif ValType == "number" or ValType == "boolean" then
-            return tostring(Val)
-
-        elseif ValType == "nil" then
-            return "nil"
-
-        else
-            return "nil"
         end
-    end
 
-    return SerializeValue(Tbl)
+        if isArray and maxIndex > 0 then
+            for i = 1, maxIndex do
+                table.insert(parts, serializeValue(val[i], indent .. " "))
+            end
+            return "{" .. table.concat(parts, ",") .. "}"
+        else
+            for k, v in pairs(val) do
+                local key
+                if type(k) == "string" then
+                    if k:match("^[%a_][%w_]*$") then
+                        key = k
+                    else
+                        key = "[\"" .. k:gsub("\\", "\\\\"):gsub("\"", "\\\"") .. "\"]"
+                    end
+                else
+                    key = "[" .. tostring(k) .. "]"
+                end
+                table.insert(parts, key .. "=" .. serializeValue(v, indent .. " "))
+            end
+            return "{" .. table.concat(parts, ",") .. "}"
+        end
+
+    elseif valType == "string" then
+        return "\"" .. val:gsub("\\", "\\\\"):gsub("\"", "\\\""):gsub("\n", "\\n"):gsub("\r", "\\r") .. "\""
+
+    elseif valType == "number" or valType == "boolean" then
+        return tostring(val)
+
+    else
+        return "nil"
+    end
+end
+
+-- Serialize table to string
+function Utils.Serialize(tbl)
+    return serializeValue(tbl)
 end
 
 -- Deserialize string to table
-function Utils.Deserialize(Str)
-    if not Str or Str == "" then
+function Utils.Deserialize(str)
+    if not str or str == "" then
         return nil, "Empty string"
     end
 
-    local Func, Err = loadstring("return " .. Str)
-    if not Func then
-        return nil, Err
+    local func, err = loadstring("return " .. str)
+    if not func then
+        return nil, err
     end
 
-    local Success, Result = pcall(Func)
-    if not Success then
-        return nil, Result
+    local success, result = pcall(func)
+    if not success then
+        return nil, result
     end
 
-    if type(Result) ~= "table" then
+    if type(result) ~= "table" then
         return nil, "Result is not a table"
     end
 
-    return Result
+    return result
 end
 
 -- Export profile to encoded string
-function Utils.ExportProfile(Data)
-    local Serialized = Utils.Serialize(Data)
-    local Encoded = Utils.Base64Encode(Serialized)
-    return Encoded
+function Utils.ExportProfile(data)
+    local serialized = Utils.Serialize(data)
+    local encoded = Utils.Base64Encode(serialized)
+    return encoded
 end
 
 -- Import profile from encoded string
-function Utils.ImportProfile(Str)
-    local Decoded = Utils.Base64Decode(Str)
-    if not Decoded or Decoded == "" then
+function Utils.ImportProfile(str)
+    local decoded = Utils.Base64Decode(str)
+    if not decoded or decoded == "" then
         return nil, "Failed to decode"
     end
 
-    local Data, Err = Utils.Deserialize(Decoded)
-    if not Data then
-        return nil, Err
+    local data, err = Utils.Deserialize(decoded)
+    if not data then
+        return nil, err
     end
 
-    return Data
+    return data
 end

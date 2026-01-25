@@ -2,12 +2,34 @@
 -- Settings UI (adds to existing Core panel)
 -- Blizzard Interface Options Style
 
-local AddonName, Addon = ...
+local addonName, addon = ...
+
+
+-- Lua API Localization
+local pairs = pairs
+local ipairs = ipairs
+local math = math
+local print = print
+local unpack = unpack
+
+-- WoW API Localization
+local CreateFrame = CreateFrame
+local C_Timer = C_Timer
+local StaticPopup_Show = StaticPopup_Show
+local UIDropDownMenu_CreateInfo = UIDropDownMenu_CreateInfo
+local UIDropDownMenu_AddButton = UIDropDownMenu_AddButton
+local UIDropDownMenu_SetWidth = UIDropDownMenu_SetWidth
+local UIDropDownMenu_SetText = UIDropDownMenu_SetText
+local UIDropDownMenu_Initialize = UIDropDownMenu_Initialize
+
+
+-- Module References
 local Oculus = _G["Oculus"]
 local L = Oculus and Oculus.L or {}
 
--- Default settings (structured)
-local Defaults = {
+
+-- Constants
+local DEFAULTS = {
     Buff = {
         Size = 20,
         PerRow = 3,
@@ -26,64 +48,66 @@ local Defaults = {
     },
 }
 
+
 -- Configuration object (populated from DB with defaults)
-local Config = {
+local config = {
     Buff = {},
     Debuff = {},
     Timer = {},
 }
 
--- Helper: Get raw DB reference
-local function GetRawDB()
-    local RF = Addon.RaidFrames
-    if not RF then return nil end
 
-    if RF.GetDB then
-        local RFDb = RF:GetDB()
-        return RFDb and RFDb.Auras
+-- Helper: Get raw DB reference
+local function getRawDB()
+    local rf = addon.RaidFrames
+    if not rf then return nil end
+
+    if rf.GetDB then
+        local rfDb = rf:GetDB()
+        return rfDb and rfDb.Auras
     end
 
-    return RF.DB and RF.DB.Auras
+    return rf.DB and rf.DB.Auras
 end
 
 -- Helper: Build configuration from DB with defaults
-local function BuildConfig()
-    local DB = GetRawDB() or {}
+local function buildConfig()
+    local db = getRawDB() or {}
 
-    Config.Buff = {
-        Size = DB.BuffSize or Defaults.Buff.Size,
-        PerRow = DB.BuffsPerRow or Defaults.Buff.PerRow,
-        Anchor = DB.BuffAnchor or Defaults.Buff.Anchor,
-        UseCustomPosition = DB.UseCustomBuffPosition or Defaults.Buff.UseCustomPosition,
+    config.Buff = {
+        Size = db.BuffSize or DEFAULTS.Buff.Size,
+        PerRow = db.BuffsPerRow or DEFAULTS.Buff.PerRow,
+        Anchor = db.BuffAnchor or DEFAULTS.Buff.Anchor,
+        UseCustomPosition = db.UseCustomBuffPosition or DEFAULTS.Buff.UseCustomPosition,
     }
 
-    Config.Debuff = {
-        Size = DB.DebuffSize or Defaults.Debuff.Size,
-        PerRow = DB.DebuffsPerRow or Defaults.Debuff.PerRow,
-        Anchor = DB.DebuffAnchor or Defaults.Debuff.Anchor,
-        UseCustomPosition = DB.UseCustomDebuffPosition or Defaults.Debuff.UseCustomPosition,
+    config.Debuff = {
+        Size = db.DebuffSize or DEFAULTS.Debuff.Size,
+        PerRow = db.DebuffsPerRow or DEFAULTS.Debuff.PerRow,
+        Anchor = db.DebuffAnchor or DEFAULTS.Debuff.Anchor,
+        UseCustomPosition = db.UseCustomDebuffPosition or DEFAULTS.Debuff.UseCustomPosition,
     }
 
-    Config.Timer = {
-        Show = (DB.ShowTimer == nil) and Defaults.Timer.Show or DB.ShowTimer,
-        ExpiringThreshold = DB.ExpiringThreshold or Defaults.Timer.ExpiringThreshold,
+    config.Timer = {
+        Show = (db.ShowTimer == nil) and DEFAULTS.Timer.Show or db.ShowTimer,
+        ExpiringThreshold = db.ExpiringThreshold or DEFAULTS.Timer.ExpiringThreshold,
     }
 
-    return Config
+    return config
 end
 
 -- Helper: Get DB for saving (creates if needed)
-local function GetDB()
-    local DB = GetRawDB()
-    if DB then return DB end
+local function getDB()
+    local db = getRawDB()
+    if db then return db end
 
     -- Create DB structure if missing
-    local RF = Addon.RaidFrames
-    if RF and RF.GetDB then
-        local RFDb = RF:GetDB()
-        if RFDb then
-            RFDb.Auras = RFDb.Auras or {}
-            return RFDb.Auras
+    local rf = addon.RaidFrames
+    if rf and rf.GetDB then
+        local rfDb = rf:GetDB()
+        if rfDb then
+            rfDb.Auras = rfDb.Auras or {}
+            return rfDb.Auras
         end
     end
 
@@ -98,250 +122,247 @@ local SECTION_SPACING = 20
 local CONTENT_WIDTH = 450
 
 -- Colors
-local Colors = {
+local COLORS = {
     Header = {1, 0.82, 0},
     Label = {1, 1, 1},
     Value = {1, 1, 1},
     Separator = {0.5, 0.5, 0.5},
 }
 
--- Stored controls for refresh
-local Controls = {}
 
--- Flag to prevent OnValueChanged from saving during initialization
-local IsInitializing = true
-
--- Track cumulative Y offset for positioning
-local CumulativeY = 0
+-- State Variables
+local controls = {}
+local isInitializing = true
+local cumulativeY = 0
 
 -- Create section header (always at X=0)
-local function CreateSectionHeader(Parent, TitleKey)
-    CumulativeY = CumulativeY - SECTION_SPACING
+local function createSectionHeader(parent, titleKey)
+    cumulativeY = cumulativeY - SECTION_SPACING
 
-    local Header = Parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    Header:SetPoint("TOPLEFT", Parent, "TOPLEFT", 0, CumulativeY)
-    Header:SetTextColor(unpack(Colors.Header))
-    Header:SetText(L[TitleKey])
+    local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    header:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, cumulativeY)
+    header:SetTextColor(unpack(COLORS.Header))
+    header:SetText(L[titleKey])
 
-    local Sep = Parent:CreateTexture(nil, "ARTWORK")
-    Sep:SetHeight(1)
-    Sep:SetPoint("TOPLEFT", Header, "BOTTOMLEFT", 0, -4)
-    Sep:SetWidth(CONTENT_WIDTH)
-    Sep:SetColorTexture(unpack(Colors.Separator))
+    local sep = parent:CreateTexture(nil, "ARTWORK")
+    sep:SetHeight(1)
+    sep:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -4)
+    sep:SetWidth(CONTENT_WIDTH)
+    sep:SetColorTexture(unpack(COLORS.Separator))
 
-    CumulativeY = CumulativeY - (Header:GetStringHeight() + 14)
+    cumulativeY = cumulativeY - (header:GetStringHeight() + 14)
 
-    return Header
+    return header
 end
 
 -- Create description text
-local function CreateDescription(Parent, DescKey, AnchorFrame, YOffset)
-    local Desc = Parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    Desc:SetPoint("TOPLEFT", AnchorFrame, "BOTTOMLEFT", INDENT, YOffset)
-    Desc:SetPoint("RIGHT", Parent, "RIGHT", -16, 0)
-    Desc:SetJustifyH("LEFT")
-    Desc:SetTextColor(0.8, 0.8, 0.8)
-    Desc:SetText(L[DescKey])
+local function createDescription(parent, descKey, anchorFrame, yOffset)
+    local desc = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    desc:SetPoint("TOPLEFT", anchorFrame, "BOTTOMLEFT", INDENT, yOffset)
+    desc:SetPoint("RIGHT", parent, "RIGHT", -16, 0)
+    desc:SetJustifyH("LEFT")
+    desc:SetTextColor(0.8, 0.8, 0.8)
+    desc:SetText(L[descKey])
 
-    return Desc, -(Desc:GetStringHeight() + 12)
+    return desc, -(desc:GetStringHeight() + 12)
 end
 
 -- Create slider row
-local function CreateSliderRow(Parent, Name, LabelKey, Min, Max, Step, UseIndent)
-    CumulativeY = CumulativeY - 8
+local function createSliderRow(parent, name, labelKey, min, max, step, useIndent)
+    cumulativeY = cumulativeY - 8
 
-    local XOffset = UseIndent and INDENT or 0
-    local Row = CreateFrame("Frame", nil, Parent)
-    Row:SetHeight(ROW_HEIGHT)
-    Row:SetPoint("TOPLEFT", Parent, "TOPLEFT", XOffset, CumulativeY)
-    Row:SetWidth(CONTENT_WIDTH - XOffset)
+    local xOffset = useIndent and INDENT or 0
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, cumulativeY)
+    row:SetWidth(CONTENT_WIDTH - xOffset)
 
-    local Label = Row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    Label:SetPoint("LEFT", Row, "LEFT", 0, 0)
-    Label:SetWidth(LABEL_WIDTH)
-    Label:SetJustifyH("LEFT")
-    Label:SetTextColor(unpack(Colors.Label))
-    Label:SetText(L[LabelKey])
+    local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("LEFT", row, "LEFT", 0, 0)
+    label:SetWidth(LABEL_WIDTH)
+    label:SetJustifyH("LEFT")
+    label:SetTextColor(unpack(COLORS.Label))
+    label:SetText(L[labelKey])
 
-    local ValueText = Row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    ValueText:SetPoint("RIGHT", Row, "RIGHT", 0, 0)
-    ValueText:SetWidth(50)
-    ValueText:SetJustifyH("RIGHT")
-    ValueText:SetTextColor(unpack(Colors.Value))
+    local valueText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    valueText:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+    valueText:SetWidth(50)
+    valueText:SetJustifyH("RIGHT")
+    valueText:SetTextColor(unpack(COLORS.Value))
 
-    local Slider = CreateFrame("Slider", "OculusRF" .. Name .. "Slider", Row, "OptionsSliderTemplate")
-    Slider:SetPoint("LEFT", Label, "RIGHT", 8, 0)
-    Slider:SetPoint("RIGHT", ValueText, "LEFT", -12, 0)
-    Slider:SetHeight(17)
-    Slider:SetMinMaxValues(Min, Max)
-    Slider:SetValueStep(Step)
-    Slider:SetObeyStepOnDrag(true)
+    local slider = CreateFrame("Slider", "OculusRF" .. name .. "Slider", row, "OptionsSliderTemplate")
+    slider:SetPoint("LEFT", label, "RIGHT", 8, 0)
+    slider:SetPoint("RIGHT", valueText, "LEFT", -12, 0)
+    slider:SetHeight(17)
+    slider:SetMinMaxValues(min, max)
+    slider:SetValueStep(step)
+    slider:SetObeyStepOnDrag(true)
 
-    local SliderName = Slider:GetName()
-    _G[SliderName .. "Text"]:SetText("")
-    _G[SliderName .. "Low"]:SetText("")
-    _G[SliderName .. "High"]:SetText("")
+    local sliderName = slider:GetName()
+    _G[sliderName .. "Text"]:SetText("")
+    _G[sliderName .. "Low"]:SetText("")
+    _G[sliderName .. "High"]:SetText("")
 
-    Slider.ValueText = ValueText
-    Slider.Row = Row
+    slider.ValueText = valueText
+    slider.Row = row
 
-    CumulativeY = CumulativeY - ROW_HEIGHT
+    cumulativeY = cumulativeY - ROW_HEIGHT
 
-    return Slider
+    return slider
 end
 
 -- Anchor point options
-local AnchorPoints = {
+local ANCHOR_POINTS = {
     "TOPLEFT", "TOP", "TOPRIGHT",
     "LEFT", "CENTER", "RIGHT",
     "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT",
 }
 
 -- Create dropdown row
-local function CreateDropdownRow(Parent, Name, LabelKey, Options, UseIndent)
-    CumulativeY = CumulativeY - 8
+local function createDropdownRow(parent, name, labelKey, options, useIndent)
+    cumulativeY = cumulativeY - 8
 
-    local XOffset = UseIndent and INDENT or 0
-    local Row = CreateFrame("Frame", nil, Parent)
-    Row:SetHeight(ROW_HEIGHT + 4)
-    Row:SetPoint("TOPLEFT", Parent, "TOPLEFT", XOffset, CumulativeY)
-    Row:SetWidth(CONTENT_WIDTH - XOffset)
+    local xOffset = useIndent and INDENT or 0
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(ROW_HEIGHT + 4)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, cumulativeY)
+    row:SetWidth(CONTENT_WIDTH - xOffset)
 
-    local Label = Row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    Label:SetPoint("LEFT", Row, "LEFT", 0, 0)
-    Label:SetWidth(LABEL_WIDTH)
-    Label:SetJustifyH("LEFT")
-    Label:SetTextColor(unpack(Colors.Label))
-    Label:SetText(L[LabelKey])
+    local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("LEFT", row, "LEFT", 0, 0)
+    label:SetWidth(LABEL_WIDTH)
+    label:SetJustifyH("LEFT")
+    label:SetTextColor(unpack(COLORS.Label))
+    label:SetText(L[labelKey])
 
-    local Dropdown = CreateFrame("Frame", "OculusRF" .. Name .. "Dropdown", Row, "UIDropDownMenuTemplate")
-    Dropdown:SetPoint("LEFT", Label, "RIGHT", -8, -2)
-    UIDropDownMenu_SetWidth(Dropdown, 120)
+    local dropdown = CreateFrame("Frame", "OculusRF" .. name .. "Dropdown", row, "UIDropDownMenuTemplate")
+    dropdown:SetPoint("LEFT", label, "RIGHT", -8, -2)
+    UIDropDownMenu_SetWidth(dropdown, 120)
 
-    Dropdown.Options = Options
-    Dropdown.Row = Row
+    dropdown.Options = options
+    dropdown.Row = row
 
-    CumulativeY = CumulativeY - (ROW_HEIGHT + 4)
+    cumulativeY = cumulativeY - (ROW_HEIGHT + 4)
 
-    return Dropdown
+    return dropdown
 end
 
 -- Create checkbox row
-local function CreateCheckboxRow(Parent, Name, LabelKey, UseIndent)
-    CumulativeY = CumulativeY - 8
+local function createCheckboxRow(parent, name, labelKey, useIndent)
+    cumulativeY = cumulativeY - 8
 
-    local XOffset = UseIndent and INDENT or 0
-    local Row = CreateFrame("Frame", nil, Parent)
-    Row:SetHeight(ROW_HEIGHT)
-    Row:SetPoint("TOPLEFT", Parent, "TOPLEFT", XOffset, CumulativeY)
-    Row:SetWidth(CONTENT_WIDTH - XOffset)
+    local xOffset = useIndent and INDENT or 0
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetHeight(ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, cumulativeY)
+    row:SetWidth(CONTENT_WIDTH - xOffset)
 
-    local Label = Row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    Label:SetPoint("LEFT", Row, "LEFT", 0, 0)
-    Label:SetJustifyH("LEFT")
-    Label:SetTextColor(unpack(Colors.Label))
-    Label:SetText(L[LabelKey])
+    local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    label:SetPoint("LEFT", row, "LEFT", 0, 0)
+    label:SetJustifyH("LEFT")
+    label:SetTextColor(unpack(COLORS.Label))
+    label:SetText(L[labelKey])
 
-    local CB = CreateFrame("CheckButton", "OculusRF" .. Name .. "CB", Row, "UICheckButtonTemplate")
-    CB:SetPoint("RIGHT", Row, "RIGHT", 4, 0)
-    CB:SetSize(22, 22)
+    local cb = CreateFrame("CheckButton", "OculusRF" .. name .. "CB", row, "UICheckButtonTemplate")
+    cb:SetPoint("RIGHT", row, "RIGHT", 4, 0)
+    cb:SetSize(22, 22)
 
-    CB.Row = Row
+    cb.Row = row
 
-    CumulativeY = CumulativeY - ROW_HEIGHT
+    cumulativeY = cumulativeY - ROW_HEIGHT
 
-    return CB
+    return cb
 end
 
 -- Refresh all control values from DB
-local function RefreshControls()
+local function refreshControls()
     -- Set flag to prevent OnValueChanged from saving during refresh
-    IsInitializing = true
+    isInitializing = true
 
     -- Build configuration from DB
-    local Cfg = BuildConfig()
+    local cfg = buildConfig()
 
     -- Buff Settings
-    if Controls.BuffSizeSlider then
-        Controls.BuffSizeSlider:SetValue(Cfg.Buff.Size)
-        Controls.BuffSizeSlider.ValueText:SetText(Cfg.Buff.Size)
+    if controls.BuffSizeSlider then
+        controls.BuffSizeSlider:SetValue(cfg.Buff.Size)
+        controls.BuffSizeSlider.ValueText:SetText(cfg.Buff.Size)
     end
 
-    if Controls.UseCustomBuffCB then
-        Controls.UseCustomBuffCB:SetChecked(Cfg.Buff.UseCustomPosition)
+    if controls.UseCustomBuffCB then
+        controls.UseCustomBuffCB:SetChecked(cfg.Buff.UseCustomPosition)
     end
 
-    if Controls.BuffsPerRowSlider then
-        Controls.BuffsPerRowSlider:SetValue(Cfg.Buff.PerRow)
-        Controls.BuffsPerRowSlider.ValueText:SetText(Cfg.Buff.PerRow)
+    if controls.BuffsPerRowSlider then
+        controls.BuffsPerRowSlider:SetValue(cfg.Buff.PerRow)
+        controls.BuffsPerRowSlider.ValueText:SetText(cfg.Buff.PerRow)
     end
 
-    if Controls.BuffAnchorDropdown then
-        UIDropDownMenu_SetText(Controls.BuffAnchorDropdown, L[Cfg.Buff.Anchor])
+    if controls.BuffAnchorDropdown then
+        UIDropDownMenu_SetText(controls.BuffAnchorDropdown, L[cfg.Buff.Anchor])
     end
 
     -- Debuff Settings
-    if Controls.DebuffSizeSlider then
-        Controls.DebuffSizeSlider:SetValue(Cfg.Debuff.Size)
-        Controls.DebuffSizeSlider.ValueText:SetText(Cfg.Debuff.Size)
+    if controls.DebuffSizeSlider then
+        controls.DebuffSizeSlider:SetValue(cfg.Debuff.Size)
+        controls.DebuffSizeSlider.ValueText:SetText(cfg.Debuff.Size)
     end
 
-    if Controls.UseCustomDebuffCB then
-        Controls.UseCustomDebuffCB:SetChecked(Cfg.Debuff.UseCustomPosition)
+    if controls.UseCustomDebuffCB then
+        controls.UseCustomDebuffCB:SetChecked(cfg.Debuff.UseCustomPosition)
     end
 
-    if Controls.DebuffsPerRowSlider then
-        Controls.DebuffsPerRowSlider:SetValue(Cfg.Debuff.PerRow)
-        Controls.DebuffsPerRowSlider.ValueText:SetText(Cfg.Debuff.PerRow)
+    if controls.DebuffsPerRowSlider then
+        controls.DebuffsPerRowSlider:SetValue(cfg.Debuff.PerRow)
+        controls.DebuffsPerRowSlider.ValueText:SetText(cfg.Debuff.PerRow)
     end
 
-    if Controls.DebuffAnchorDropdown then
-        UIDropDownMenu_SetText(Controls.DebuffAnchorDropdown, L[Cfg.Debuff.Anchor])
+    if controls.DebuffAnchorDropdown then
+        UIDropDownMenu_SetText(controls.DebuffAnchorDropdown, L[cfg.Debuff.Anchor])
     end
 
     -- Timer Settings
-    if Controls.ShowTimerCB then
-        Controls.ShowTimerCB:SetChecked(Cfg.Timer.Show)
+    if controls.ShowTimerCB then
+        controls.ShowTimerCB:SetChecked(cfg.Timer.Show)
     end
 
-    if Controls.ExpiringSlider then
-        local ThresholdPercent = Cfg.Timer.ExpiringThreshold * 100
-        Controls.ExpiringSlider:SetValue(ThresholdPercent)
-        Controls.ExpiringSlider.ValueText:SetText(ThresholdPercent .. "%")
+    if controls.ExpiringSlider then
+        local thresholdPercent = cfg.Timer.ExpiringThreshold * 100
+        controls.ExpiringSlider:SetValue(thresholdPercent)
+        controls.ExpiringSlider.ValueText:SetText(thresholdPercent .. "%")
     end
 
     -- Allow saving after initialization is complete
-    IsInitializing = false
+    isInitializing = false
 end
 
 -- Add settings to the RaidFrames panel
-local function PopulateSettingsPanel()
-    local Panel = Oculus and Oculus.ModulePanels and Oculus.ModulePanels["RaidFrames"]
-    if not Panel then
+local function populateSettingsPanel()
+    local panel = Oculus and Oculus.ModulePanels and Oculus.ModulePanels["RaidFrames"]
+    if not panel then
         print("|cFFFF0000[Oculus RaidFrames]|r Settings panel not found")
         return
     end
 
-    if Panel.SettingsPopulated then return end
+    if panel.SettingsPopulated then return end
 
     -- ============================================
     -- Top-right action buttons (next to title)
     -- ============================================
-    local ResetBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    ResetBtn:SetPoint("TOPRIGHT", Panel, "TOPRIGHT", -16, -16)
-    ResetBtn:SetSize(130, 22)
-    ResetBtn:SetText(L["Reset to Defaults"])
-    ResetBtn:SetScript("OnClick", function()
+    local resetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    resetBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -16, -16)
+    resetBtn:SetSize(130, 22)
+    resetBtn:SetText(L["Reset to Defaults"])
+    resetBtn:SetScript("OnClick", function()
         StaticPopup_Show("OCULUS_RF_RESET_CONFIRM")
     end)
 
-    local PreviewBtn = CreateFrame("Button", nil, Panel, "UIPanelButtonTemplate")
-    PreviewBtn:SetPoint("RIGHT", ResetBtn, "LEFT", -8, 0)
-    PreviewBtn:SetSize(110, 22)
-    PreviewBtn:SetText(L["Preview Mode"])
-    PreviewBtn:SetScript("OnClick", function()
-        if Addon.Auras and Addon.Auras.TogglePreview then
-            Addon.Auras:TogglePreview()
+    local previewBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    previewBtn:SetPoint("RIGHT", resetBtn, "LEFT", -8, 0)
+    previewBtn:SetSize(110, 22)
+    previewBtn:SetText(L["Preview Mode"])
+    previewBtn:SetScript("OnClick", function()
+        if addon.Auras and addon.Auras.TogglePreview then
+            addon.Auras:TogglePreview()
         else
             print("|cFFFFFF00[Oculus]|r " .. L["Preview Not Available"])
         end
@@ -350,203 +371,203 @@ local function PopulateSettingsPanel()
     -- ============================================
     -- Create ScrollFrame for content
     -- ============================================
-    local ScrollFrame = CreateFrame("ScrollFrame", "OculusRFScrollFrame", Panel, "UIPanelScrollFrameTemplate")
-    ScrollFrame:SetPoint("TOPLEFT", Panel.EnableCheckbox, "BOTTOMLEFT", 0, -10)
-    ScrollFrame:SetPoint("BOTTOMRIGHT", Panel, "BOTTOMRIGHT", -28, 10)
+    local scrollFrame = CreateFrame("ScrollFrame", "OculusRFScrollFrame", panel, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", panel.EnableCheckbox, "BOTTOMLEFT", 0, -10)
+    scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 10)
 
-    local ScrollChild = CreateFrame("Frame", "OculusRFScrollChild", ScrollFrame)
-    ScrollChild:SetWidth(CONTENT_WIDTH)
-    ScrollChild:SetHeight(1)  -- Will be updated based on content
-    ScrollFrame:SetScrollChild(ScrollChild)
+    local scrollChild = CreateFrame("Frame", "OculusRFScrollChild", scrollFrame)
+    scrollChild:SetWidth(CONTENT_WIDTH)
+    scrollChild:SetHeight(1)  -- Will be updated based on content
+    scrollFrame:SetScrollChild(scrollChild)
 
     -- Store references
-    Panel.ScrollFrame = ScrollFrame
-    Panel.ScrollChild = ScrollChild
+    panel.ScrollFrame = scrollFrame
+    panel.ScrollChild = scrollChild
 
     -- ============================================
     -- Content starts in ScrollChild
     -- ============================================
-    local ContentParent = ScrollChild
-    CumulativeY = 0  -- Reset cumulative Y offset
+    local contentParent = scrollChild
+    cumulativeY = 0  -- Reset cumulative Y offset
 
     -- ============================================
     -- Buff Settings
     -- ============================================
-    CreateSectionHeader(ContentParent, "Buff Settings")
+    createSectionHeader(contentParent, "Buff Settings")
 
     -- Buff Size
-    local BuffSizeSlider = CreateSliderRow(ContentParent, "BuffSize", "Buff Icon Size", 10, 40, 1, true)
-    Controls.BuffSizeSlider = BuffSizeSlider
-    BuffSizeSlider:SetScript("OnValueChanged", function(Self, Value)
-        Value = math.floor(Value)
-        Self.ValueText:SetText(Value)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.BuffSize = Value
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local buffSizeSlider = createSliderRow(contentParent, "BuffSize", "Buff Icon Size", 10, 40, 1, true)
+    controls.BuffSizeSlider = buffSizeSlider
+    buffSizeSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.BuffSize = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Custom Buff Position
-    local UseCustomBuffCB = CreateCheckboxRow(ContentParent, "UseCustomBuffPosition", "Use Custom Position", true)
-    Controls.UseCustomBuffCB = UseCustomBuffCB
-    UseCustomBuffCB:SetScript("OnClick", function(Self)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.UseCustomBuffPosition = Self:GetChecked()
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local useCustomBuffCB = createCheckboxRow(contentParent, "UseCustomBuffPosition", "Use Custom Position", true)
+    controls.UseCustomBuffCB = useCustomBuffCB
+    useCustomBuffCB:SetScript("OnClick", function(self)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.UseCustomBuffPosition = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Buffs Per Row
-    local BuffsPerRowSlider = CreateSliderRow(ContentParent, "BuffsPerRow", "Buffs Per Row", 1, 6, 1, true)
-    Controls.BuffsPerRowSlider = BuffsPerRowSlider
-    BuffsPerRowSlider:SetScript("OnValueChanged", function(Self, Value)
-        Value = math.floor(Value)
-        Self.ValueText:SetText(Value)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.BuffsPerRow = Value
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local buffsPerRowSlider = createSliderRow(contentParent, "BuffsPerRow", "Buffs Per Row", 1, 6, 1, true)
+    controls.BuffsPerRowSlider = buffsPerRowSlider
+    buffsPerRowSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.BuffsPerRow = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Buff Anchor Dropdown
-    local BuffAnchorDropdown = CreateDropdownRow(ContentParent, "BuffAnchor", "Buff Anchor", AnchorPoints, true)
-    Controls.BuffAnchorDropdown = BuffAnchorDropdown
-    UIDropDownMenu_Initialize(BuffAnchorDropdown, function(Self, Level)
-        for _, Anchor in ipairs(AnchorPoints) do
-            local Info = UIDropDownMenu_CreateInfo()
-            Info.text = L[Anchor]
-            Info.value = Anchor
-            Info.func = function()
-                if IsInitializing then return end
-                UIDropDownMenu_SetText(BuffAnchorDropdown, L[Anchor])
-                local DB = GetDB()
-                if DB then
-                    DB.BuffAnchor = Anchor
-                    if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local buffAnchorDropdown = createDropdownRow(contentParent, "BuffAnchor", "Buff Anchor", ANCHOR_POINTS, true)
+    controls.BuffAnchorDropdown = buffAnchorDropdown
+    UIDropDownMenu_Initialize(buffAnchorDropdown, function(self, level)
+        for _, anchor in ipairs(ANCHOR_POINTS) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = L[anchor]
+            info.value = anchor
+            info.func = function()
+                if isInitializing then return end
+                UIDropDownMenu_SetText(buffAnchorDropdown, L[anchor])
+                local db = getDB()
+                if db then
+                    db.BuffAnchor = anchor
+                    if addon.Auras then addon.Auras:RefreshAllFrames() end
                 end
             end
-            UIDropDownMenu_AddButton(Info, Level)
+            UIDropDownMenu_AddButton(info, level)
         end
     end)
 
     -- ============================================
     -- Debuff Settings
     -- ============================================
-    CreateSectionHeader(ContentParent, "Debuff Settings")
+    createSectionHeader(contentParent, "Debuff Settings")
 
     -- Debuff Size
-    local DebuffSizeSlider = CreateSliderRow(ContentParent, "DebuffSize", "Debuff Icon Size", 10, 50, 1, true)
-    Controls.DebuffSizeSlider = DebuffSizeSlider
-    DebuffSizeSlider:SetScript("OnValueChanged", function(Self, Value)
-        Value = math.floor(Value)
-        Self.ValueText:SetText(Value)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.DebuffSize = Value
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local debuffSizeSlider = createSliderRow(contentParent, "DebuffSize", "Debuff Icon Size", 10, 50, 1, true)
+    controls.DebuffSizeSlider = debuffSizeSlider
+    debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.DebuffSize = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Custom Debuff Position
-    local UseCustomDebuffCB = CreateCheckboxRow(ContentParent, "UseCustomDebuffPosition", "Use Custom Position", true)
-    Controls.UseCustomDebuffCB = UseCustomDebuffCB
-    UseCustomDebuffCB:SetScript("OnClick", function(Self)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.UseCustomDebuffPosition = Self:GetChecked()
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local useCustomDebuffCB = createCheckboxRow(contentParent, "UseCustomDebuffPosition", "Use Custom Position", true)
+    controls.UseCustomDebuffCB = useCustomDebuffCB
+    useCustomDebuffCB:SetScript("OnClick", function(self)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.UseCustomDebuffPosition = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Debuffs Per Row
-    local DebuffsPerRowSlider = CreateSliderRow(ContentParent, "DebuffsPerRow", "Debuffs Per Row", 1, 6, 1, true)
-    Controls.DebuffsPerRowSlider = DebuffsPerRowSlider
-    DebuffsPerRowSlider:SetScript("OnValueChanged", function(Self, Value)
-        Value = math.floor(Value)
-        Self.ValueText:SetText(Value)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.DebuffsPerRow = Value
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local debuffsPerRowSlider = createSliderRow(contentParent, "DebuffsPerRow", "Debuffs Per Row", 1, 6, 1, true)
+    controls.DebuffsPerRowSlider = debuffsPerRowSlider
+    debuffsPerRowSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.DebuffsPerRow = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Debuff Anchor Dropdown
-    local DebuffAnchorDropdown = CreateDropdownRow(ContentParent, "DebuffAnchor", "Debuff Anchor", AnchorPoints, true)
-    Controls.DebuffAnchorDropdown = DebuffAnchorDropdown
-    UIDropDownMenu_Initialize(DebuffAnchorDropdown, function(Self, Level)
-        for _, Anchor in ipairs(AnchorPoints) do
-            local Info = UIDropDownMenu_CreateInfo()
-            Info.text = L[Anchor]
-            Info.value = Anchor
-            Info.func = function()
-                if IsInitializing then return end
-                UIDropDownMenu_SetText(DebuffAnchorDropdown, L[Anchor])
-                local DB = GetDB()
-                if DB then
-                    DB.DebuffAnchor = Anchor
-                    if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local debuffAnchorDropdown = createDropdownRow(contentParent, "DebuffAnchor", "Debuff Anchor", ANCHOR_POINTS, true)
+    controls.DebuffAnchorDropdown = debuffAnchorDropdown
+    UIDropDownMenu_Initialize(debuffAnchorDropdown, function(self, level)
+        for _, anchor in ipairs(ANCHOR_POINTS) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = L[anchor]
+            info.value = anchor
+            info.func = function()
+                if isInitializing then return end
+                UIDropDownMenu_SetText(debuffAnchorDropdown, L[anchor])
+                local db = getDB()
+                if db then
+                    db.DebuffAnchor = anchor
+                    if addon.Auras then addon.Auras:RefreshAllFrames() end
                 end
             end
-            UIDropDownMenu_AddButton(Info, Level)
+            UIDropDownMenu_AddButton(info, level)
         end
     end)
 
     -- ============================================
     -- Timer Settings
     -- ============================================
-    CreateSectionHeader(ContentParent, "Timer Settings")
+    createSectionHeader(contentParent, "Timer Settings")
 
     -- Show Timer
-    local ShowTimerCB = CreateCheckboxRow(ContentParent, "ShowTimer", "Show Duration Timer", true)
-    Controls.ShowTimerCB = ShowTimerCB
-    ShowTimerCB:SetScript("OnClick", function(Self)
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.ShowTimer = Self:GetChecked()
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local showTimerCB = createCheckboxRow(contentParent, "ShowTimer", "Show Duration Timer", true)
+    controls.ShowTimerCB = showTimerCB
+    showTimerCB:SetScript("OnClick", function(self)
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.ShowTimer = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- Expiring Threshold
-    local ExpiringSlider = CreateSliderRow(ContentParent, "ExpiringThreshold", "Expiring Warning (%)", 10, 50, 5, true)
-    Controls.ExpiringSlider = ExpiringSlider
-    ExpiringSlider:SetScript("OnValueChanged", function(Self, Value)
-        Value = math.floor(Value)
-        Self.ValueText:SetText(Value .. "%")
-        if IsInitializing then return end
-        local DB = GetDB()
-        if DB then
-            DB.ExpiringThreshold = Value / 100
-            if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+    local expiringSlider = createSliderRow(contentParent, "ExpiringThreshold", "Expiring Warning (%)", 10, 50, 5, true)
+    controls.ExpiringSlider = expiringSlider
+    expiringSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value .. "%")
+        if isInitializing then return end
+        local db = getDB()
+        if db then
+            db.ExpiringThreshold = value / 100
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
     -- ============================================
     -- Update ScrollChild height based on content
     -- ============================================
-    local TotalHeight = -CumulativeY + 30
-    ScrollChild:SetHeight(TotalHeight)
+    local totalHeight = -cumulativeY + 30
+    scrollChild:SetHeight(totalHeight)
 
     -- ============================================
     -- OnShow - Load values
     -- ============================================
-    Panel:HookScript("OnShow", RefreshControls)
+    panel:HookScript("OnShow", refreshControls)
 
     -- Initial refresh after short delay (DB may not be ready)
-    C_Timer.After(0.1, RefreshControls)
+    C_Timer.After(0.1, refreshControls)
 
-    Panel.SettingsPopulated = true
+    panel.SettingsPopulated = true
 end
 
 -- Reset Confirmation Dialog
@@ -555,18 +576,18 @@ StaticPopupDialogs["OCULUS_RF_RESET_CONFIRM"] = {
     button1 = L["Reset"],
     button2 = L["Cancel"],
     OnAccept = function()
-        local RF = Addon.RaidFrames
-        if RF then
-            local DB = RF:GetDB()
-            if DB and RF.Defaults and RF.Defaults.Auras then
+        local rf = addon.RaidFrames
+        if rf then
+            local db = rf:GetDB()
+            if db and rf.Defaults and rf.Defaults.Auras then
                 -- Deep copy defaults
-                DB.Auras = {}
-                for Key, Value in pairs(RF.Defaults.Auras) do
-                    DB.Auras[Key] = Value
+                db.Auras = {}
+                for key, value in pairs(rf.Defaults.Auras) do
+                    db.Auras[key] = value
                 end
-                if Addon.Auras then Addon.Auras:RefreshAllFrames() end
+                if addon.Auras then addon.Auras:RefreshAllFrames() end
                 print("|cFF00FF00[Oculus]|r " .. L["Settings Reset"])
-                RefreshControls()
+                refreshControls()
             end
         end
     end,
@@ -576,14 +597,15 @@ StaticPopupDialogs["OCULUS_RF_RESET_CONFIRM"] = {
     preferredIndex = 3,
 }
 
+
 -- Initialize on PLAYER_LOGIN
-local Frame = CreateFrame("Frame")
-Frame:RegisterEvent("PLAYER_LOGIN")
-Frame:SetScript("OnEvent", function(Self, Event)
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
+eventFrame:SetScript("OnEvent", function(self, event)
     C_Timer.After(0.3, function()
         if Oculus and Oculus.ModulePanels then
-            PopulateSettingsPanel()
+            populateSettingsPanel()
         end
     end)
-    Self:UnregisterEvent("PLAYER_LOGIN")
+    self:UnregisterEvent("PLAYER_LOGIN")
 end)
