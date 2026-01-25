@@ -1,13 +1,11 @@
 -- Oculus RaidFrames - Config
--- Settings UI (adds to existing Core panel)
--- Blizzard Interface Options Style
+-- Settings UI with Tab Structure (adds to existing Core panel)
 
 local addonName, addon = ...
 
 
 -- Lua API Localization
 local pairs = pairs
-local ipairs = ipairs
 local math = math
 local print = print
 local unpack = unpack
@@ -15,14 +13,7 @@ local unpack = unpack
 -- WoW API Localization
 local CreateFrame = CreateFrame
 local C_Timer = C_Timer
-local C_Spell = C_Spell
-local GameTooltip = GameTooltip
 local StaticPopup_Show = StaticPopup_Show
-local UIDropDownMenu_CreateInfo = UIDropDownMenu_CreateInfo
-local UIDropDownMenu_AddButton = UIDropDownMenu_AddButton
-local UIDropDownMenu_SetWidth = UIDropDownMenu_SetWidth
-local UIDropDownMenu_SetText = UIDropDownMenu_SetText
-local UIDropDownMenu_Initialize = UIDropDownMenu_Initialize
 
 
 -- Module References
@@ -40,6 +31,7 @@ local DEFAULTS = {
     },
     Buff = {
         Size = 20,
+        MaxCount = 9,
         PerRow = 3,
         Anchor = "BOTTOMRIGHT",
         UseCustomPosition = false,
@@ -47,6 +39,7 @@ local DEFAULTS = {
     },
     Debuff = {
         Size = 24,
+        MaxCount = 6,
         PerRow = 3,
         Anchor = "BOTTOMLEFT",
         UseCustomPosition = false,
@@ -98,16 +91,13 @@ end
 -- Deep merge helper (storage overwrites defaults, preserves false/0 values)
 local function deepMerge(target, source)
     local result = {}
-    -- Start with source (defaults)
     for key, value in pairs(source) do
         if type(value) == "table" then
             result[key] = deepMerge(target[key] or {}, value)
         else
-            -- Use target value if it exists (even if false/0), otherwise use default
             result[key] = target[key] ~= nil and target[key] or value
         end
     end
-    -- Add any keys from target that aren't in defaults
     for key, value in pairs(target) do
         if result[key] == nil then
             if type(value) == "table" then
@@ -125,10 +115,7 @@ local function buildConfig()
     local fullStorage = getFullStorage() or {}
     local storage = getRawStorage() or {}
 
-    -- Merge Frame settings from fullStorage
     config.Frame = deepMerge(fullStorage.Frame or {}, DEFAULTS.Frame)
-
-    -- Merge Auras settings from storage
     config.Buff = deepMerge(storage.Buff or {}, DEFAULTS.Buff)
     config.Debuff = deepMerge(storage.Debuff or {}, DEFAULTS.Debuff)
     config.Timer = deepMerge(storage.Timer or {}, DEFAULTS.Timer)
@@ -141,7 +128,6 @@ local function getStorage()
     local storage = getRawStorage()
     if storage then return storage end
 
-    -- Create Storage structure if missing
     local rf = addon.RaidFrames
     if rf and rf.GetStorage then
         local rfStorage = rf:GetStorage()
@@ -174,6 +160,9 @@ local COLORS = {
 local controls = {}
 local isInitializing = true
 local cumulativeY = 0
+local currentTab = 1
+local currentCategory = {1, 1, 1}  -- Current category for each tab
+
 
 -- Enable/Disable all setting controls
 local function setControlsEnabled(enabled)
@@ -195,7 +184,7 @@ local function setControlsEnabled(enabled)
     end
 end
 
--- Create section header (always at X=0)
+-- Create section header
 local function createSectionHeader(parent, titleKey)
     cumulativeY = cumulativeY - SECTION_SPACING
 
@@ -215,28 +204,17 @@ local function createSectionHeader(parent, titleKey)
     return header
 end
 
--- Create description text
-local function createDescription(parent, descKey, anchorFrame, yOffset)
-    local desc = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    desc:SetPoint("TOPLEFT", anchorFrame, "BOTTOMLEFT", INDENT, yOffset)
-    desc:SetPoint("RIGHT", parent, "RIGHT", -16, 0)
-    desc:SetJustifyH("LEFT")
-    desc:SetTextColor(0.8, 0.8, 0.8)
-    desc:SetText(L[descKey])
-
-    return desc, -(desc:GetStringHeight() + 12)
-end
-
--- Create slider row
+-- Create modern slider row
 local function createSliderRow(parent, name, labelKey, min, max, step, useIndent)
     cumulativeY = cumulativeY - 8
 
     local xOffset = useIndent and INDENT or 0
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
+    row:SetHeight(ROW_HEIGHT + 10)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, cumulativeY)
     row:SetWidth(CONTENT_WIDTH - xOffset)
 
+    -- Label
     local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetPoint("LEFT", row, "LEFT", 0, 0)
     label:SetWidth(LABEL_WIDTH)
@@ -244,39 +222,119 @@ local function createSliderRow(parent, name, labelKey, min, max, step, useIndent
     label:SetTextColor(unpack(COLORS.Label))
     label:SetText(L[labelKey])
 
-    local valueText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    valueText:SetPoint("RIGHT", row, "RIGHT", 0, 0)
-    valueText:SetWidth(50)
-    valueText:SetJustifyH("RIGHT")
-    valueText:SetTextColor(unpack(COLORS.Value))
+    -- Value EditBox (editable input)
+    local valueBox = CreateFrame("EditBox", "OculusRF" .. name .. "ValueBox", row, "InputBoxTemplate")
+    valueBox:SetPoint("RIGHT", row, "RIGHT", -4, 0)
+    valueBox:SetSize(55, 22)
+    valueBox:SetAutoFocus(false)
+    valueBox:SetNumeric(true)
+    valueBox:SetMaxLetters(4)
+    valueBox:SetJustifyH("CENTER")
+    valueBox:SetFontObject("GameFontHighlight")
 
-    local slider = CreateFrame("Slider", "OculusRF" .. name .. "Slider", row, "OptionsSliderTemplate")
-    slider:SetPoint("LEFT", label, "RIGHT", 8, 0)
-    slider:SetPoint("RIGHT", valueText, "LEFT", -12, 0)
-    slider:SetHeight(17)
+    -- Custom slider
+    local slider = CreateFrame("Slider", "OculusRF" .. name .. "Slider", row)
+    slider:SetPoint("LEFT", label, "RIGHT", 12, 0)
+    slider:SetPoint("RIGHT", valueBox, "LEFT", -12, 0)
+    slider:SetHeight(24)
+    slider:SetOrientation("HORIZONTAL")
     slider:SetMinMaxValues(min, max)
     slider:SetValueStep(step)
     slider:SetObeyStepOnDrag(true)
+    slider:SetValue(min)  -- Initialize to minimum value
 
-    local sliderName = slider:GetName()
-    _G[sliderName .. "Text"]:SetText("")
-    _G[sliderName .. "Low"]:SetText("")
-    _G[sliderName .. "High"]:SetText("")
+    -- Track background
+    local trackBg = slider:CreateTexture(nil, "BACKGROUND")
+    trackBg:SetPoint("LEFT", slider, "LEFT", 0, 0)
+    trackBg:SetPoint("RIGHT", slider, "RIGHT", 0, 0)
+    trackBg:SetHeight(6)
+    trackBg:SetColorTexture(0.2, 0.2, 0.2, 0.8)
 
-    slider.ValueText = valueText
+    -- Track fill (shows progress)
+    local trackFill = slider:CreateTexture(nil, "ARTWORK")
+    trackFill:SetPoint("LEFT", slider, "LEFT", 0, 0)
+    trackFill:SetHeight(6)
+    trackFill:SetColorTexture(0.3, 0.6, 0.9, 0.9)
+    slider.trackFill = trackFill
+
+    -- Thumb (draggable handle)
+    local thumb = slider:CreateTexture(nil, "OVERLAY")
+    thumb:SetSize(28, 28)
+    thumb:SetTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+    slider:SetThumbTexture(thumb)
+
+    -- Thumb highlight
+    local thumbHighlight = slider:CreateTexture(nil, "HIGHLIGHT")
+    thumbHighlight:SetSize(32, 32)
+    thumbHighlight:SetTexture("Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+    thumbHighlight:SetBlendMode("ADD")
+    thumbHighlight:SetAlpha(0.4)
+
+    -- Update fill on value change
+    local function updateFill(val)
+        local sliderWidth = slider:GetWidth()
+        if sliderWidth <= 0 then return end
+
+        -- Calculate position based on value (same logic as thumb position)
+        local percent = (val - min) / (max - min)
+
+        -- Account for thumb width - thumb is centered on the position
+        local thumbWidth = 28
+        local effectiveWidth = sliderWidth - thumbWidth
+        local fillWidth = effectiveWidth * percent + (thumbWidth / 2)
+
+        -- Ensure fill width is at least 0
+        trackFill:SetWidth(math.max(0, fillWidth))
+        valueBox:SetText(tostring(math.floor(val)))
+    end
+
+    slider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        updateFill(value)
+        if self.userCallback then
+            self.userCallback(self, value)
+        end
+    end)
+
+    -- Update fill when slider size changes
+    slider:SetScript("OnSizeChanged", function(self)
+        local currentValue = self:GetValue()
+        if currentValue then
+            updateFill(currentValue)
+        end
+    end)
+
+    -- Store as function, not method
+    slider.updateFillFunc = updateFill
+
+    -- EditBox validation
+    valueBox:SetScript("OnEnterPressed", function(self)
+        local value = tonumber(self:GetText())
+        if value then
+            value = math.max(min, math.min(max, value))
+            value = math.floor(value / step) * step
+            slider:SetValue(value)
+        end
+        self:ClearFocus()
+    end)
+
+    valueBox:SetScript("OnEscapePressed", function(self)
+        self:SetText(tostring(math.floor(slider:GetValue())))
+        self:ClearFocus()
+    end)
+
+    valueBox:SetScript("OnEditFocusLost", function(self)
+        self:SetText(tostring(math.floor(slider:GetValue())))
+    end)
+
+    slider.ValueText = valueBox
+    slider.ValueBox = valueBox
     slider.Row = row
 
-    cumulativeY = cumulativeY - ROW_HEIGHT
+    cumulativeY = cumulativeY - (ROW_HEIGHT + 6)
 
     return slider
 end
-
--- Anchor point options
-local ANCHOR_POINTS = {
-    "TOPLEFT", "TOP", "TOPRIGHT",
-    "LEFT", "CENTER", "RIGHT",
-    "BOTTOMLEFT", "BOTTOM", "BOTTOMRIGHT",
-}
 
 -- Create dropdown row
 local function createDropdownRow(parent, name, labelKey, options, useIndent)
@@ -284,7 +342,7 @@ local function createDropdownRow(parent, name, labelKey, options, useIndent)
 
     local xOffset = useIndent and INDENT or 0
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_HEIGHT + 4)
+    row:SetHeight(ROW_HEIGHT + 8)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, cumulativeY)
     row:SetWidth(CONTENT_WIDTH - xOffset)
 
@@ -297,49 +355,69 @@ local function createDropdownRow(parent, name, labelKey, options, useIndent)
 
     local dropdown = CreateFrame("Frame", "OculusRF" .. name .. "Dropdown", row, "UIDropDownMenuTemplate")
     dropdown:SetPoint("LEFT", label, "RIGHT", -8, -2)
-    UIDropDownMenu_SetWidth(dropdown, 120)
+    dropdown:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+
+    -- Calculate width to fill remaining space (accounting for dropdown button and padding)
+    local availableWidth = CONTENT_WIDTH - xOffset - LABEL_WIDTH + 8
+    UIDropDownMenu_SetWidth(dropdown, availableWidth - 37.5)
 
     dropdown.Options = options
     dropdown.Row = row
 
-    cumulativeY = cumulativeY - (ROW_HEIGHT + 4)
+    cumulativeY = cumulativeY - (ROW_HEIGHT + 8)
 
     return dropdown
 end
 
--- Create checkbox row
+-- Create checkbox row (modern style)
 local function createCheckboxRow(parent, name, labelKey, useIndent)
     cumulativeY = cumulativeY - 8
 
     local xOffset = useIndent and INDENT or 0
     local row = CreateFrame("Frame", nil, parent)
-    row:SetHeight(ROW_HEIGHT)
+    row:SetHeight(ROW_HEIGHT + 4)
     row:SetPoint("TOPLEFT", parent, "TOPLEFT", xOffset, cumulativeY)
     row:SetWidth(CONTENT_WIDTH - xOffset)
 
+    -- Background (hover effect)
+    row.bg = row:CreateTexture(nil, "BACKGROUND")
+    row.bg:SetAllPoints()
+    row.bg:SetColorTexture(0, 0, 0, 0)
+
+    row.highlight = row:CreateTexture(nil, "HIGHLIGHT")
+    row.highlight:SetAllPoints()
+    row.highlight:SetColorTexture(0.2, 0.2, 0.2, 0.3)
+
+    -- Label (fixed width for alignment)
     local label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetPoint("LEFT", row, "LEFT", 0, 0)
+    label:SetWidth(LABEL_WIDTH)
     label:SetJustifyH("LEFT")
     label:SetTextColor(unpack(COLORS.Label))
     label:SetText(L[labelKey])
 
+    -- Checkbox (aligned with other controls)
     local checkbox = CreateFrame("CheckButton", "OculusRF" .. name .. "Checkbox", row, "UICheckButtonTemplate")
-    checkbox:SetPoint("RIGHT", row, "RIGHT", 4, 0)
-    checkbox:SetSize(22, 22)
+    checkbox:SetPoint("LEFT", label, "RIGHT", 8, 0)
+    checkbox:SetSize(20, 20)
+
+    -- Make the whole row clickable
+    row:EnableMouse(true)
+    row:SetScript("OnMouseDown", function()
+        checkbox:Click()
+    end)
 
     checkbox.Row = row
 
-    cumulativeY = cumulativeY - ROW_HEIGHT
+    cumulativeY = cumulativeY - (ROW_HEIGHT + 4)
 
     return checkbox
 end
 
 -- Refresh all control values from Storage
 local function refreshControls()
-    -- Set flag to prevent OnValueChanged from saving during refresh
     isInitializing = true
 
-    -- Check if module is enabled
     local isEnabled = true
     if Oculus and Oculus.Storage and Oculus.Storage.EnabledModules then
         local enabled = Oculus.Storage.EnabledModules["RaidFrames"]
@@ -348,90 +426,141 @@ local function refreshControls()
         end
     end
 
-    -- Enable/disable controls based on module state
     setControlsEnabled(isEnabled)
 
-    -- Build configuration from Storage
     local configuration = buildConfig()
 
     -- Frame Settings
     if controls.HideRoleIconCheckbox then
         controls.HideRoleIconCheckbox:SetChecked(configuration.Frame.HideRoleIcon)
     end
-
     if controls.HideNameCheckbox then
         controls.HideNameCheckbox:SetChecked(configuration.Frame.HideName)
     end
-
     if controls.HideAggroBorderCheckbox then
         controls.HideAggroBorderCheckbox:SetChecked(configuration.Frame.HideAggroBorder)
     end
-
     if controls.HidePartyTitleCheckbox then
         controls.HidePartyTitleCheckbox:SetChecked(configuration.Frame.HidePartyTitle)
     end
 
     -- Buff Settings
+    if controls.MaxBuffsSlider then
+        local slider = controls.MaxBuffsSlider
+        slider:SetValue(configuration.Buff.MaxCount)
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(configuration.Buff.MaxCount)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(configuration.Buff.MaxCount)
+                end
+            end
+        end)
+    end
+
     if controls.BuffSizeSlider then
-        controls.BuffSizeSlider:SetValue(configuration.Buff.Size)
-        controls.BuffSizeSlider.ValueText:SetText(configuration.Buff.Size)
+        local slider = controls.BuffSizeSlider
+        slider:SetValue(configuration.Buff.Size)
+        -- Force update fill after layout is complete
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(configuration.Buff.Size)
+            end
+        end)
     end
-
-    if controls.UseCustomBuffCheckbox then
-        controls.UseCustomBuffCheckbox:SetChecked(configuration.Buff.UseCustomPosition)
-    end
-
     if controls.BuffsPerRowSlider then
-        controls.BuffsPerRowSlider:SetValue(configuration.Buff.PerRow)
-        controls.BuffsPerRowSlider.ValueText:SetText(configuration.Buff.PerRow)
+        local slider = controls.BuffsPerRowSlider
+        slider:SetValue(configuration.Buff.PerRow)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(configuration.Buff.PerRow)
+            end
+        end)
     end
-
     if controls.BuffAnchorDropdown then
         UIDropDownMenu_SetText(controls.BuffAnchorDropdown, L[configuration.Buff.Anchor])
     end
-
     if controls.BuffSpacingSlider then
-        controls.BuffSpacingSlider:SetValue(configuration.Buff.Spacing)
-        controls.BuffSpacingSlider.ValueText:SetText(configuration.Buff.Spacing)
+        local slider = controls.BuffSpacingSlider
+        local value = configuration.Buff.Spacing
+        slider:SetValue(value)
+        -- Force thumb position update
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(value)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(value)
+                end
+            end
+        end)
     end
 
     -- Debuff Settings
-    if controls.DebuffSizeSlider then
-        controls.DebuffSizeSlider:SetValue(configuration.Debuff.Size)
-        controls.DebuffSizeSlider.ValueText:SetText(configuration.Debuff.Size)
+    if controls.MaxDebuffsSlider then
+        local slider = controls.MaxDebuffsSlider
+        slider:SetValue(configuration.Debuff.MaxCount)
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(configuration.Debuff.MaxCount)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(configuration.Debuff.MaxCount)
+                end
+            end
+        end)
     end
 
+    if controls.DebuffSizeSlider then
+        local slider = controls.DebuffSizeSlider
+        slider:SetValue(configuration.Debuff.Size)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(configuration.Debuff.Size)
+            end
+        end)
+    end
     if controls.HideDispelOverlayCheckbox then
         controls.HideDispelOverlayCheckbox:SetChecked(configuration.Debuff.HideDispelOverlay)
     end
-
-    if controls.UseCustomDebuffCheckbox then
-        controls.UseCustomDebuffCheckbox:SetChecked(configuration.Debuff.UseCustomPosition)
-    end
-
     if controls.DebuffsPerRowSlider then
-        controls.DebuffsPerRowSlider:SetValue(configuration.Debuff.PerRow)
-        controls.DebuffsPerRowSlider.ValueText:SetText(configuration.Debuff.PerRow)
+        local slider = controls.DebuffsPerRowSlider
+        slider:SetValue(configuration.Debuff.PerRow)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(configuration.Debuff.PerRow)
+            end
+        end)
     end
-
     if controls.DebuffAnchorDropdown then
         UIDropDownMenu_SetText(controls.DebuffAnchorDropdown, L[configuration.Debuff.Anchor])
     end
-
     if controls.DebuffSpacingSlider then
-        controls.DebuffSpacingSlider:SetValue(configuration.Debuff.Spacing)
-        controls.DebuffSpacingSlider.ValueText:SetText(configuration.Debuff.Spacing)
+        local slider = controls.DebuffSpacingSlider
+        local value = configuration.Debuff.Spacing
+        slider:SetValue(value)
+        -- Force thumb position update
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(value)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(value)
+                end
+            end
+        end)
     end
 
     -- Timer Settings
     if controls.ShowTimerCheckbox then
         controls.ShowTimerCheckbox:SetChecked(configuration.Timer.Show)
     end
-
     if controls.ExpiringSlider then
+        local slider = controls.ExpiringSlider
         local thresholdPercent = configuration.Timer.ExpiringThreshold * 100
-        controls.ExpiringSlider:SetValue(thresholdPercent)
-        controls.ExpiringSlider.ValueText:SetText(thresholdPercent .. "%")
+        slider:SetValue(thresholdPercent)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(thresholdPercent)
+            end
+        end)
     end
 
     -- Tracked Spells List
@@ -439,8 +568,131 @@ local function refreshControls()
         controls.TrackedSpellsList:RefreshList()
     end
 
-    -- Allow saving after initialization is complete
     isInitializing = false
+end
+
+-- Create tab button (header style)
+local function createTabButton(parent, index, text, onClick)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetID(index)
+    button:SetSize(120, 24)
+
+    -- Background
+    button.bg = button:CreateTexture(nil, "BACKGROUND")
+    button.bg:SetAllPoints()
+    button.bg:SetColorTexture(0.2, 0.2, 0.2, 0.5)
+
+    -- Highlight
+    button.highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    button.highlight:SetAllPoints()
+    button.highlight:SetColorTexture(0.3, 0.3, 0.3, 0.5)
+
+    -- Selected background
+    button.selectedBg = button:CreateTexture(nil, "BACKGROUND")
+    button.selectedBg:SetAllPoints()
+    button.selectedBg:SetColorTexture(0.4, 0.4, 0.2, 0.8)
+    button.selectedBg:Hide()
+
+    -- Text
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    button.text:SetPoint("CENTER")
+    button.text:SetText(text)
+
+    button:SetScript("OnClick", onClick)
+
+    -- Position
+    if index == 1 then
+        button:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+    else
+        local prevButton = parent.tabButtons[index - 1]
+        button:SetPoint("LEFT", prevButton, "RIGHT", 2, 0)
+    end
+
+    return button
+end
+
+-- Create category button (left sidebar)
+local function createCategoryButton(sidebar, container, index, text, onClick)
+    local button = CreateFrame("Button", nil, sidebar)
+    button:SetSize(150, 20)
+    button:SetID(index)
+
+    -- Normal texture
+    button.normalTexture = button:CreateTexture(nil, "BACKGROUND")
+    button.normalTexture:SetAllPoints()
+    button.normalTexture:SetColorTexture(0.2, 0.2, 0.2, 0.3)
+
+    -- Highlight texture
+    button.highlightTexture = button:CreateTexture(nil, "HIGHLIGHT")
+    button.highlightTexture:SetAllPoints()
+    button.highlightTexture:SetColorTexture(0.3, 0.3, 0.3, 0.5)
+
+    -- Selected texture
+    button.selectedTexture = button:CreateTexture(nil, "BACKGROUND")
+    button.selectedTexture:SetAllPoints()
+    button.selectedTexture:SetColorTexture(0.4, 0.4, 0.2, 0.6)
+    button.selectedTexture:Hide()
+
+    -- Text
+    button.text = button:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    button.text:SetPoint("LEFT", button, "LEFT", 8, 0)
+    button.text:SetText(text)
+
+    button:SetScript("OnClick", onClick)
+
+    -- Position
+    if index == 1 then
+        button:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 8, -8)
+    else
+        local prevButton = container.categoryButtons[index - 1]
+        button:SetPoint("TOPLEFT", prevButton, "BOTTOMLEFT", 0, -2)
+    end
+
+    return button
+end
+
+-- Switch to category within current tab
+local function switchToCategory(panel, tabIndex, categoryIndex)
+    currentCategory[tabIndex] = categoryIndex
+
+    local container = panel.TabContainers[tabIndex]
+    if not container then return end
+
+    -- Update category button states
+    for i, categoryBtn in ipairs(container.categoryButtons) do
+        if i == categoryIndex then
+            categoryBtn.selectedTexture:Show()
+            categoryBtn.text:SetTextColor(1, 0.82, 0)
+            container.categoryFrames[i]:Show()
+        else
+            categoryBtn.selectedTexture:Hide()
+            categoryBtn.text:SetTextColor(1, 1, 1)
+            container.categoryFrames[i]:Hide()
+        end
+    end
+end
+
+-- Switch to tab
+local function switchToTab(panel, tabIndex)
+    currentTab = tabIndex
+
+    -- Update tab button states
+    for i, tabBtn in ipairs(panel.TabHeader.tabButtons) do
+        if i == tabIndex then
+            tabBtn.selectedBg:Show()
+            tabBtn.bg:Hide()
+            tabBtn.text:SetTextColor(1, 0.82, 0)
+            panel.TabContainers[i]:Show()
+        else
+            tabBtn.selectedBg:Hide()
+            tabBtn.bg:Show()
+            tabBtn.text:SetTextColor(1, 1, 1)
+            panel.TabContainers[i]:Hide()
+        end
+    end
+
+    -- Also update the category selection for the current tab
+    switchToCategory(panel, tabIndex, currentCategory[tabIndex])
 end
 
 -- Add settings to the RaidFrames panel
@@ -454,7 +706,7 @@ local function populateSettingsPanel()
     if panel.SettingsPopulated then return end
 
     -- ============================================
-    -- Top-right action buttons (next to title)
+    -- Top-right action buttons
     -- ============================================
     local resetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     resetBtn:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -16, -16)
@@ -477,511 +729,192 @@ local function populateSettingsPanel()
     end)
 
     -- ============================================
-    -- Create ScrollFrame for content
+    -- Row 1: Header area (100% width) - Tab buttons
     -- ============================================
-    local scrollFrame = CreateFrame("ScrollFrame", "OculusRFScrollFrame", panel, "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", panel.EnableCheckbox, "BOTTOMLEFT", 0, -10)
-    scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 10)
+    local tabHeader = CreateFrame("Frame", nil, panel)
+    tabHeader:SetPoint("TOPLEFT", panel.EnableCheckbox, "BOTTOMLEFT", 0, -10)
+    tabHeader:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -10, -60)
+    tabHeader:SetHeight(24)
 
-    local scrollChild = CreateFrame("Frame", "OculusRFScrollChild", scrollFrame)
-    scrollChild:SetWidth(CONTENT_WIDTH)
-    scrollChild:SetHeight(1)  -- Will be updated based on content
-    scrollFrame:SetScrollChild(scrollChild)
+    local headerBg = tabHeader:CreateTexture(nil, "BACKGROUND")
+    headerBg:SetAllPoints()
+    headerBg:SetColorTexture(0.1, 0.1, 0.1, 0.8)
 
-    -- Store references
-    panel.ScrollFrame = scrollFrame
-    panel.ScrollChild = scrollChild
+    panel.TabHeader = tabHeader
+    tabHeader.tabButtons = {}
+    panel.TabContainers = {}
 
-    -- ============================================
-    -- Content starts in ScrollChild
-    -- ============================================
-    local contentParent = scrollChild
-    cumulativeY = 0  -- Reset cumulative Y offset
-
-    -- ============================================
-    -- Frame Settings
-    -- ============================================
-    createSectionHeader(contentParent, "Frame Settings")
-
-    -- Hide Role Icon (checked = hidden)
-    local hideRoleIconCheckbox = createCheckboxRow(contentParent, "HideRoleIcon", "Hide Role Icon", true)
-    controls.HideRoleIconCheckbox = hideRoleIconCheckbox
-    hideRoleIconCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getFullStorage()
-        if storage then
-            storage.Frame = storage.Frame or {}
-            storage.Frame.HideRoleIcon = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
+    -- Tab 1: 프레임 설정
+    local tab1 = createTabButton(tabHeader, 1, L["Frame Settings"], function()
+        switchToTab(panel, 1)
     end)
+    tabHeader.tabButtons[1] = tab1
 
-    -- Hide Name (checked = hidden)
-    local hideNameCheckbox = createCheckboxRow(contentParent, "HideName", "Hide Name", true)
-    controls.HideNameCheckbox = hideNameCheckbox
-    hideNameCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getFullStorage()
-        if storage then
-            storage.Frame = storage.Frame or {}
-            storage.Frame.HideName = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
+    -- Tab 2: 버프 설정
+    local tab2 = createTabButton(tabHeader, 2, L["Buff Settings"], function()
+        switchToTab(panel, 2)
     end)
+    tabHeader.tabButtons[2] = tab2
 
-    -- Hide Aggro Border (checked = hidden)
-    local hideAggroBorderCheckbox = createCheckboxRow(contentParent, "HideAggroBorder", "Hide Aggro Border", true)
-    controls.HideAggroBorderCheckbox = hideAggroBorderCheckbox
-    hideAggroBorderCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getFullStorage()
-        if storage then
-            storage.Frame = storage.Frame or {}
-            storage.Frame.HideAggroBorder = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
+    -- Tab 3: 디버프 설정
+    local tab3 = createTabButton(tabHeader, 3, L["Debuff Settings"], function()
+        switchToTab(panel, 3)
     end)
-
-    -- Hide Party Title (checked = hidden)
-    local hidePartyTitleCheckbox = createCheckboxRow(contentParent, "HidePartyTitle", "Hide Party Title", true)
-    controls.HidePartyTitleCheckbox = hidePartyTitleCheckbox
-    hidePartyTitleCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getFullStorage()
-        if storage then
-            storage.Frame = storage.Frame or {}
-            storage.Frame.HidePartyTitle = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
+    tabHeader.tabButtons[3] = tab3
 
     -- ============================================
-    -- Buff Settings
+    -- Row 2: Content area (sidebar + settings)
     -- ============================================
-    createSectionHeader(contentParent, "Buff Settings")
+    for tabIndex = 1, 3 do
+        local container = CreateFrame("Frame", nil, panel)
+        container:SetPoint("TOPLEFT", tabHeader, "BOTTOMLEFT", 0, -2)
+        container:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -10, 10)
 
-    -- Buff Size
-    local buffSizeSlider = createSliderRow(contentParent, "BuffSize", "Buff Icon Size", 10, 40, 1, true)
-    controls.BuffSizeSlider = buffSizeSlider
-    buffSizeSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Buff = storage.Buff or {}
-            storage.Buff.Size = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Custom Buff Position
-    local useCustomBuffCheckbox = createCheckboxRow(contentParent, "UseCustomBuffPosition", "Use Custom Position", true)
-    controls.UseCustomBuffCheckbox = useCustomBuffCheckbox
-    useCustomBuffCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Buff = storage.Buff or {}
-            storage.Buff.UseCustomPosition = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Buffs Per Row
-    local buffsPerRowSlider = createSliderRow(contentParent, "BuffsPerRow", "Buffs Per Row", 1, 6, 1, true)
-    controls.BuffsPerRowSlider = buffsPerRowSlider
-    buffsPerRowSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Buff = storage.Buff or {}
-            storage.Buff.PerRow = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Buff Anchor Dropdown
-    local buffAnchorDropdown = createDropdownRow(contentParent, "BuffAnchor", "Buff Anchor", ANCHOR_POINTS, true)
-    controls.BuffAnchorDropdown = buffAnchorDropdown
-    UIDropDownMenu_Initialize(buffAnchorDropdown, function(self, level)
-        for _, anchor in ipairs(ANCHOR_POINTS) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = L[anchor]
-            info.value = anchor
-            info.func = function()
-                if isInitializing then return end
-                UIDropDownMenu_SetText(buffAnchorDropdown, L[anchor])
-                local storage = getStorage()
-                if storage then
-                    storage.Buff = storage.Buff or {}
-                    storage.Buff.Anchor = anchor
-                    if addon.Auras then addon.Auras:RefreshAllFrames() end
-                end
-            end
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
-
-    -- Buff Spacing
-    local buffSpacingSlider = createSliderRow(contentParent, "BuffSpacing", "Buff Spacing", 0, 10, 1, true)
-    controls.BuffSpacingSlider = buffSpacingSlider
-    buffSpacingSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Buff = storage.Buff or {}
-            storage.Buff.Spacing = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- ============================================
-    -- Debuff Settings
-    -- ============================================
-    createSectionHeader(contentParent, "Debuff Settings")
-
-    -- Debuff Size
-    local debuffSizeSlider = createSliderRow(contentParent, "DebuffSize", "Debuff Icon Size", 10, 50, 1, true)
-    controls.DebuffSizeSlider = debuffSizeSlider
-    debuffSizeSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.Size = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Hide Dispel Overlay
-    local hideDispelOverlayCheckbox = createCheckboxRow(contentParent, "HideDispelOverlay", "Hide Dispel Overlay", true)
-    controls.HideDispelOverlayCheckbox = hideDispelOverlayCheckbox
-    hideDispelOverlayCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.HideDispelOverlay = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Custom Debuff Position
-    local useCustomDebuffCheckbox = createCheckboxRow(contentParent, "UseCustomDebuffPosition", "Use Custom Position", true)
-    controls.UseCustomDebuffCheckbox = useCustomDebuffCheckbox
-    useCustomDebuffCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.UseCustomPosition = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Debuffs Per Row
-    local debuffsPerRowSlider = createSliderRow(contentParent, "DebuffsPerRow", "Debuffs Per Row", 1, 6, 1, true)
-    controls.DebuffsPerRowSlider = debuffsPerRowSlider
-    debuffsPerRowSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.PerRow = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Debuff Anchor Dropdown
-    local debuffAnchorDropdown = createDropdownRow(contentParent, "DebuffAnchor", "Debuff Anchor", ANCHOR_POINTS, true)
-    controls.DebuffAnchorDropdown = debuffAnchorDropdown
-    UIDropDownMenu_Initialize(debuffAnchorDropdown, function(self, level)
-        for _, anchor in ipairs(ANCHOR_POINTS) do
-            local info = UIDropDownMenu_CreateInfo()
-            info.text = L[anchor]
-            info.value = anchor
-            info.func = function()
-                if isInitializing then return end
-                UIDropDownMenu_SetText(debuffAnchorDropdown, L[anchor])
-                local storage = getStorage()
-                if storage then
-                    storage.Debuff = storage.Debuff or {}
-                    storage.Debuff.Anchor = anchor
-                    if addon.Auras then addon.Auras:RefreshAllFrames() end
-                end
-            end
-            UIDropDownMenu_AddButton(info, level)
-        end
-    end)
-
-    -- Debuff Spacing
-    local debuffSpacingSlider = createSliderRow(contentParent, "DebuffSpacing", "Debuff Spacing", 0, 10, 1, true)
-    controls.DebuffSpacingSlider = debuffSpacingSlider
-    debuffSpacingSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.Spacing = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- ============================================
-    -- Timer Settings
-    -- ============================================
-    createSectionHeader(contentParent, "Timer Settings")
-
-    -- Show Timer
-    local showTimerCheckbox = createCheckboxRow(contentParent, "ShowTimer", "Show Duration Timer", true)
-    controls.ShowTimerCheckbox = showTimerCheckbox
-    showTimerCheckbox:SetScript("OnClick", function(self)
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Timer = storage.Timer or {}
-            storage.Timer.Show = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Expiring Threshold
-    local expiringSlider = createSliderRow(contentParent, "ExpiringThreshold", "Expiring Warning (%)", 10, 50, 5, true)
-    controls.ExpiringSlider = expiringSlider
-    expiringSlider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
-        self.ValueText:SetText(value .. "%")
-        if isInitializing then return end
-        local storage = getStorage()
-        if storage then
-            storage.Timer = storage.Timer or {}
-            storage.Timer.ExpiringThreshold = value / 100
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- ============================================
-    -- Tracked Spells
-    -- ============================================
-    cumulativeY = cumulativeY - SECTION_SPACING
-
-    local trackedSpellsHeader = contentParent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    trackedSpellsHeader:SetPoint("TOPLEFT", contentParent, "TOPLEFT", INDENT, cumulativeY)
-    trackedSpellsHeader:SetText(L["Tracked Spells"])
-    cumulativeY = cumulativeY - (trackedSpellsHeader:GetStringHeight() + 8)
-
-    local trackedSpellsDesc = contentParent:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    trackedSpellsDesc:SetPoint("TOPLEFT", contentParent, "TOPLEFT", INDENT, cumulativeY)
-    trackedSpellsDesc:SetPoint("RIGHT", contentParent, "RIGHT", -16, 0)
-    trackedSpellsDesc:SetJustifyH("LEFT")
-    trackedSpellsDesc:SetTextColor(0.8, 0.8, 0.8)
-    trackedSpellsDesc:SetText(L["Tracked Spells Desc"])
-    cumulativeY = cumulativeY - (trackedSpellsDesc:GetStringHeight() + 12)
-
-    -- Add Spell ID row
-    local addSpellRow = CreateFrame("Frame", nil, contentParent)
-    addSpellRow:SetHeight(ROW_HEIGHT + 4)
-    addSpellRow:SetPoint("TOPLEFT", contentParent, "TOPLEFT", INDENT, cumulativeY)
-    addSpellRow:SetWidth(CONTENT_WIDTH - INDENT)
-
-    local spellIdEditBox = CreateFrame("EditBox", "OculusRFSpellIdEditBox", addSpellRow, "InputBoxTemplate")
-    spellIdEditBox:SetPoint("LEFT", addSpellRow, "LEFT", 8, 0)
-    spellIdEditBox:SetWidth(120)
-    spellIdEditBox:SetHeight(20)
-    spellIdEditBox:SetAutoFocus(false)
-    spellIdEditBox:SetMaxLetters(10)
-    spellIdEditBox:SetText("")
-    spellIdEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    spellIdEditBox:SetScript("OnEnterPressed", function(self)
-        local spellId = tonumber(self:GetText())
-        if spellId then
-            local storage = getStorage()
-            if storage then
-                storage.Timer = storage.Timer or {}
-                storage.Timer.TrackedSpells = storage.Timer.TrackedSpells or {}
-                storage.Timer.TrackedSpells[spellId] = true
-                if addon.Auras then addon.Auras:RefreshAllFrames() end
-                self:SetText("")
-                self:ClearFocus()
-                if controls.TrackedSpellsList then
-                    controls.TrackedSpellsList:RefreshList()
-                end
-            end
-        end
-    end)
-
-    local addButton = CreateFrame("Button", nil, addSpellRow, "UIPanelButtonTemplate")
-    addButton:SetPoint("LEFT", spellIdEditBox, "RIGHT", 8, 0)
-    addButton:SetSize(60, 22)
-    addButton:SetText(L["Add"])
-    addButton:SetScript("OnClick", function()
-        local spellId = tonumber(spellIdEditBox:GetText())
-        if spellId then
-            local storage = getStorage()
-            if storage then
-                storage.Timer = storage.Timer or {}
-                storage.Timer.TrackedSpells = storage.Timer.TrackedSpells or {}
-                storage.Timer.TrackedSpells[spellId] = true
-                if addon.Auras then addon.Auras:RefreshAllFrames() end
-                spellIdEditBox:SetText("")
-                spellIdEditBox:ClearFocus()
-                if controls.TrackedSpellsList then
-                    controls.TrackedSpellsList:RefreshList()
-                end
-            end
-        end
-    end)
-
-    cumulativeY = cumulativeY - (ROW_HEIGHT + 12)
-
-    -- Tracked Spells List
-    local trackedSpellsList = CreateFrame("Frame", nil, contentParent)
-    trackedSpellsList:SetPoint("TOPLEFT", contentParent, "TOPLEFT", INDENT, cumulativeY)
-    trackedSpellsList:SetWidth(CONTENT_WIDTH - INDENT)
-    trackedSpellsList:SetHeight(100)
-
-    trackedSpellsList.entries = {}
-
-    function trackedSpellsList:RefreshList()
-        -- Clear existing entries
-        for _, entry in ipairs(self.entries) do
-            entry:Hide()
+        if tabIndex ~= 1 then
+            container:Hide()
         end
 
-        local storage = getStorage()
-        if not storage or not storage.Timer or not storage.Timer.TrackedSpells then
-            return
-        end
+        -- Left sidebar (20%)
+        local sidebar = CreateFrame("Frame", nil, container)
+        sidebar:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0)
+        sidebar:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", 0, 0)
+        sidebar:SetWidth(160)
 
-        local trackedSpells = storage.Timer.TrackedSpells
-        local yOffset = 0
-        local entryIndex = 1
+        local sidebarBg = sidebar:CreateTexture(nil, "BACKGROUND")
+        sidebarBg:SetAllPoints()
+        sidebarBg:SetColorTexture(0, 0, 0, 0.5)
 
-        for spellId, enabled in pairs(trackedSpells) do
-            if enabled then
-                local entry = self.entries[entryIndex]
-                if not entry then
-                    entry = CreateFrame("Frame", nil, self)
-                    entry:SetHeight(ROW_HEIGHT)
-                    entry:SetWidth(CONTENT_WIDTH - INDENT)
+        container.sidebar = sidebar
+        container.categoryButtons = {}
+        container.categoryFrames = {}
 
-                    -- Spell icon button
-                    entry.icon = CreateFrame("Button", nil, entry)
-                    entry.icon:SetSize(24, 24)
-                    entry.icon:SetPoint("LEFT", entry, "LEFT", 0, 0)
-
-                    entry.iconTexture = entry.icon:CreateTexture(nil, "ARTWORK")
-                    entry.iconTexture:SetAllPoints(entry.icon)
-                    entry.iconTexture:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-
-                    -- Icon border
-                    entry.iconBorder = entry.icon:CreateTexture(nil, "OVERLAY")
-                    entry.iconBorder:SetAllPoints(entry.icon)
-                    entry.iconBorder:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-                    entry.iconBorder:SetBlendMode("ADD")
-                    entry.iconBorder:SetAlpha(0.5)
-
-                    -- Spell name text
-                    entry.text = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-                    entry.text:SetPoint("LEFT", entry.icon, "RIGHT", 8, 0)
-                    entry.text:SetJustifyH("LEFT")
-
-                    -- Remove button
-                    entry.removeBtn = CreateFrame("Button", nil, entry, "UIPanelButtonTemplate")
-                    entry.removeBtn:SetPoint("RIGHT", entry, "RIGHT", 0, 0)
-                    entry.removeBtn:SetSize(60, 20)
-                    entry.removeBtn:SetText(L["Remove"])
-
-                    self.entries[entryIndex] = entry
-                end
-
-                -- Get spell info
-                local spellInfo = C_Spell.GetSpellInfo(spellId)
-                local spellName = spellInfo and spellInfo.name or "Unknown"
-                local iconID = spellInfo and spellInfo.iconID
-
-                -- Update icon
-                if iconID then
-                    entry.iconTexture:SetTexture(iconID)
-                else
-                    entry.iconTexture:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-                end
-
-                -- Setup tooltip
-                entry.icon:SetScript("OnEnter", function(self)
-                    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                    GameTooltip:SetSpellByID(spellId)
-                    GameTooltip:Show()
-                end)
-                entry.icon:SetScript("OnLeave", function(self)
-                    GameTooltip:Hide()
-                end)
-
-                entry:SetPoint("TOPLEFT", self, "TOPLEFT", 0, yOffset)
-                entry.text:SetText(string.format("%s (%d)", spellName, spellId))
-                entry.removeBtn.spellId = spellId
-                entry.removeBtn:SetScript("OnClick", function(btn)
-                    local storage = getStorage()
-                    if storage and storage.Timer and storage.Timer.TrackedSpells then
-                        storage.Timer.TrackedSpells[btn.spellId] = nil
-                        if addon.Auras then addon.Auras:RefreshAllFrames() end
-                        trackedSpellsList:RefreshList()
-                    end
-                end)
-                entry:Show()
-
-                yOffset = yOffset - ROW_HEIGHT
-                entryIndex = entryIndex + 1
-            end
-        end
-
-        if entryIndex == 1 then
-            -- No spells tracked
-            local entry = self.entries[1]
-            if not entry then
-                entry = CreateFrame("Frame", nil, self)
-                entry:SetHeight(ROW_HEIGHT)
-                entry:SetWidth(CONTENT_WIDTH - INDENT)
-
-                entry.text = entry:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-                entry.text:SetPoint("LEFT", entry, "LEFT", 0, 0)
-                entry.text:SetJustifyH("LEFT")
-                entry.text:SetTextColor(0.6, 0.6, 0.6)
-
-                self.entries[1] = entry
-            end
-
-            entry:SetPoint("TOPLEFT", self, "TOPLEFT", 0, 0)
-            entry.text:SetText(L["No Tracked Spells"])
-            if entry.removeBtn then entry.removeBtn:Hide() end
-            entry:Show()
-        end
-
-        -- Calculate height needed
-        local listHeight = math.abs(yOffset) + ROW_HEIGHT
-        self:SetHeight(math.max(30, listHeight))
+        panel.TabContainers[tabIndex] = container
     end
 
-    controls.TrackedSpellsList = trackedSpellsList
+    -- ============================================
+    -- Populate each tab with categories
+    -- ============================================
 
-    cumulativeY = cumulativeY - 110
+    -- Helper functions for tab modules
+    local helpers = {
+        getStorage = getStorage,
+        getFullStorage = getFullStorage,
+        createSectionHeader = createSectionHeader,
+        createSliderRow = createSliderRow,
+        createDropdownRow = createDropdownRow,
+        createCheckboxRow = createCheckboxRow,
+        isInitializing = function() return isInitializing end,
+        getCumulativeY = function() return cumulativeY end,
+        setCumulativeY = function(y) cumulativeY = y end,
+    }
 
     -- ============================================
-    -- Update ScrollChild height based on content
+    -- Tab 1: 일반 설정 (Frame Settings)
     -- ============================================
-    local totalHeight = -cumulativeY + 30
-    scrollChild:SetHeight(totalHeight)
+    local container1 = panel.TabContainers[1]
+
+    -- Only one category for Frame Settings
+    local cat1 = createCategoryButton(container1.sidebar, container1, 1, L["Frame Settings"], function()
+        switchToCategory(panel, 1, 1)
+    end)
+    container1.categoryButtons[1] = cat1
+
+    local scrollFrame1 = CreateFrame("ScrollFrame", "OculusRFTab1Cat1", container1, "UIPanelScrollFrameTemplate")
+    scrollFrame1:SetPoint("TOPLEFT", container1.sidebar, "TOPRIGHT", 10, 0)
+    scrollFrame1:SetPoint("BOTTOMRIGHT", container1, "BOTTOMRIGHT", -18, 0)
+
+    local scrollChild1 = CreateFrame("Frame", nil, scrollFrame1)
+    scrollChild1:SetWidth(CONTENT_WIDTH)
+    scrollChild1:SetHeight(1)
+    scrollFrame1:SetScrollChild(scrollChild1)
+
+    container1.categoryFrames[1] = scrollFrame1
+
+    cumulativeY = 0
+    if addon.ConfigFrameTab then
+        addon.ConfigFrameTab:Populate(scrollChild1, controls, helpers)
+    end
+    scrollChild1:SetHeight(-cumulativeY + 30)
+
+    -- ============================================
+    -- Tab 2: 버프 설정 (Buff Settings)
+    -- ============================================
+    local container2 = panel.TabContainers[2]
+
+    -- Category 1: 버프 아이콘 설정
+    local cat2_1 = createCategoryButton(container2.sidebar, container2, 1, L["Buff Icon Settings"], function()
+        switchToCategory(panel, 2, 1)
+    end)
+    container2.categoryButtons[1] = cat2_1
+
+    local scrollFrame2_1 = CreateFrame("ScrollFrame", "OculusRFTab2Cat1", container2, "UIPanelScrollFrameTemplate")
+    scrollFrame2_1:SetPoint("TOPLEFT", container2.sidebar, "TOPRIGHT", 10, 0)
+    scrollFrame2_1:SetPoint("BOTTOMRIGHT", container2, "BOTTOMRIGHT", -18, 0)
+
+    local scrollChild2_1 = CreateFrame("Frame", nil, scrollFrame2_1)
+    scrollChild2_1:SetWidth(CONTENT_WIDTH)
+    scrollChild2_1:SetHeight(1)
+    scrollFrame2_1:SetScrollChild(scrollChild2_1)
+
+    container2.categoryFrames[1] = scrollFrame2_1
+
+    cumulativeY = 0
+    if addon.ConfigBuffTab then
+        addon.ConfigBuffTab:PopulateBuffSettings(scrollChild2_1, controls, helpers)
+    end
+    scrollChild2_1:SetHeight(-cumulativeY + 30)
+
+    -- Category 2: 타이머 설정
+    local cat2_2 = createCategoryButton(container2.sidebar, container2, 2, L["Timer Settings"], function()
+        switchToCategory(panel, 2, 2)
+    end)
+    container2.categoryButtons[2] = cat2_2
+
+    local scrollFrame2_2 = CreateFrame("ScrollFrame", "OculusRFTab2Cat2", container2, "UIPanelScrollFrameTemplate")
+    scrollFrame2_2:SetPoint("TOPLEFT", container2.sidebar, "TOPRIGHT", 10, 0)
+    scrollFrame2_2:SetPoint("BOTTOMRIGHT", container2, "BOTTOMRIGHT", -18, 0)
+
+    local scrollChild2_2 = CreateFrame("Frame", nil, scrollFrame2_2)
+    scrollChild2_2:SetWidth(CONTENT_WIDTH)
+    scrollChild2_2:SetHeight(1)
+    scrollFrame2_2:SetScrollChild(scrollChild2_2)
+
+    container2.categoryFrames[2] = scrollFrame2_2
+    scrollFrame2_2:Hide()
+
+    cumulativeY = 0
+    if addon.ConfigBuffTab then
+        addon.ConfigBuffTab:PopulateTimerSettings(scrollChild2_2, controls, helpers)
+    end
+    scrollChild2_2:SetHeight(-cumulativeY + 30)
+
+    -- ============================================
+    -- Tab 3: 디버프 설정 (Debuff Settings)
+    -- ============================================
+    local container3 = panel.TabContainers[3]
+
+    -- Only one category for Debuff Settings
+    local cat3 = createCategoryButton(container3.sidebar, container3, 1, L["Debuff Settings"], function()
+        switchToCategory(panel, 3, 1)
+    end)
+    container3.categoryButtons[1] = cat3
+
+    local scrollFrame3 = CreateFrame("ScrollFrame", "OculusRFTab3Cat1", container3, "UIPanelScrollFrameTemplate")
+    scrollFrame3:SetPoint("TOPLEFT", container3.sidebar, "TOPRIGHT", 10, 0)
+    scrollFrame3:SetPoint("BOTTOMRIGHT", container3, "BOTTOMRIGHT", -18, 0)
+
+    local scrollChild3 = CreateFrame("Frame", nil, scrollFrame3)
+    scrollChild3:SetWidth(CONTENT_WIDTH)
+    scrollChild3:SetHeight(1)
+    scrollFrame3:SetScrollChild(scrollChild3)
+
+    container3.categoryFrames[1] = scrollFrame3
+
+    cumulativeY = 0
+    if addon.ConfigDebuffTab then
+        addon.ConfigDebuffTab:Populate(scrollChild3, controls, helpers)
+    end
+    scrollChild3:SetHeight(-cumulativeY + 30)
 
     -- ============================================
     -- Hook EnableCheckbox to update controls
@@ -997,8 +930,12 @@ local function populateSettingsPanel()
     -- ============================================
     panel:HookScript("OnShow", refreshControls)
 
-    -- Initial refresh after short delay (Storage may not be ready)
+    -- Initial refresh
     C_Timer.After(0.1, refreshControls)
+
+    -- Select first tab and category
+    switchToTab(panel, 1)
+    switchToCategory(panel, 1, 1)
 
     panel.SettingsPopulated = true
 end
@@ -1013,7 +950,6 @@ StaticPopupDialogs["OCULUS_RF_RESET_CONFIRM"] = {
         if rf then
             local storage = rf:GetStorage()
             if storage and rf.Defaults and rf.Defaults.Auras then
-                -- Deep copy defaults
                 storage.Auras = {}
                 for key, value in pairs(rf.Defaults.Auras) do
                     storage.Auras[key] = value

@@ -10,4 +10,7 @@
 
 RaidFrames.lua
 Auras.lua
+ConfigFrameTab.lua
+ConfigBuffTab.lua
+ConfigDebuffTab.lua
 Config.lua
