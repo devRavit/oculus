@@ -187,12 +187,10 @@ local function createSubPanel(name, labelKey, descKey)
         Oculus.Storage.EnabledModules[name] = self:GetChecked()
 
         if self:GetChecked() then
-            print("|cFF00FF00[Oculus]|r " .. L[labelKey] .. " " .. L["Module Enabled"])
             if Oculus.Modules[name] and Oculus.Modules[name].Enable then
                 Oculus.Modules[name]:Enable()
             end
         else
-            print("|cFFFFFF00[Oculus]|r " .. L[labelKey] .. " " .. L["Module Disabled"])
             if Oculus.Modules[name] and Oculus.Modules[name].Disable then
                 Oculus.Modules[name]:Disable()
             end
@@ -344,7 +342,6 @@ function Oculus:ShowImportDialog()
     importBtn:SetScript("OnClick", function()
         local text = editBox:GetText():trim()
         if text == "" then
-            print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. L["Import Empty"])
             return
         end
 
@@ -352,10 +349,7 @@ function Oculus:ShowImportDialog()
         if data then
             OculusStorage = data
             Oculus.Storage = OculusStorage
-            print("|cFF00FF00[Oculus]|r " .. L["Import Success"])
             dialog:Hide()
-        else
-            print("|cFFFF0000[Oculus]|r " .. L["Import Failed"] .. ": " .. (err or L["Invalid Data"]))
         end
     end)
 

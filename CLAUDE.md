@@ -61,3 +61,19 @@ Button:SetText(L["Preview Mode"])
 
 - `Oculus/Localization.lua`: 메인 현지화 파일
 - enUS (기본값) + koKR 지원
+
+---
+
+## 로깅 규칙 (절대 준수)
+
+**CRITICAL: print() 함수 사용 절대 금지**
+
+- **print() 직접 호출 절대 금지** - 어떠한 상황에서도 print() 사용 금지
+- **반드시 logDebug() 함수만 사용** - 모든 로그는 logDebug()를 통해서만 출력
+- **Logger 모듈 사용**: `addon.Logger:Log(module, submodule, message)`
+- **로그 저장**: SavedVariables (`OculusUnitFramesLogs`)에 자동 저장
+- **로그 확인**:
+  - 게임 내: 채팅창에 실시간 출력
+  - SavedVariables: `/Applications/World of Warcraft/_retail_/WTF/Account/*/SavedVariables/Oculus_UnitFrames.lua`
+- **로그 포맷**: `[YYYY-MM-DD HH:MM:SS] [Module:SubModule] message`
+- **최대 로그 수**: 500개 (초과 시 오래된 로그부터 삭제)
