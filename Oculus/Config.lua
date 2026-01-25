@@ -149,33 +149,42 @@ local function createSubPanel(name, labelKey, descKey)
     desc:SetJustifyH("LEFT")
 
     -- Enable Checkbox
-    local enableCB = CreateFrame("CheckButton", "OculusEnable" .. name, panel, "InterfaceOptionsCheckButtonTemplate")
-    enableCB:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -16)
-    enableCB.Text:SetText(L["Enable"] .. " " .. L[labelKey])
-    panel.EnableCheckbox = enableCB
+    local enableCheckbox = CreateFrame("CheckButton", "OculusEnable" .. name, panel, "InterfaceOptionsCheckButtonTemplate")
+    enableCheckbox:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -16)
+    enableCheckbox.Text:SetText(L["Enable"] .. " " .. L[labelKey])
+    panel.EnableCheckbox = enableCheckbox
 
-    enableCB:SetScript("OnShow", function(self)
-        -- Ensure DB is initialized
-        if not Oculus.DB or not next(Oculus.DB) then
-            Oculus.DB = OculusDB or {}
+    -- Update checkbox state from Storage
+    local function updateCheckboxState()
+        -- Get storage reference (fallback to global if Oculus.Storage not ready)
+        local storage = Oculus.Storage or OculusStorage
+
+        if not storage or not storage.EnabledModules then
+            -- Storage not initialized yet, assume enabled by default
+            enableCheckbox:SetChecked(true)
+            return
         end
-        if not Oculus.DB.EnabledModules then
-            Oculus.DB.EnabledModules = {}
-        end
-        -- Default to true if not explicitly set to false
-        local isEnabled = Oculus.DB.EnabledModules[name]
+
+        -- Read current value from Storage (default: true if nil)
+        local isEnabled = storage.EnabledModules[name]
         if isEnabled == nil then
             isEnabled = true
-            Oculus.DB.EnabledModules[name] = true
         end
-        self:SetChecked(isEnabled)
-    end)
 
-    enableCB:SetScript("OnClick", function(self)
-        if not Oculus.DB.EnabledModules then
-            Oculus.DB.EnabledModules = {}
+        enableCheckbox:SetChecked(isEnabled)
+    end
+
+    -- Store update function as method for external access
+    enableCheckbox.UpdateState = updateCheckboxState
+
+    -- Also update on panel show
+    panel:SetScript("OnShow", updateCheckboxState)
+
+    enableCheckbox:SetScript("OnClick", function(self)
+        if not Oculus.Storage.EnabledModules then
+            Oculus.Storage.EnabledModules = {}
         end
-        Oculus.DB.EnabledModules[name] = self:GetChecked()
+        Oculus.Storage.EnabledModules[name] = self:GetChecked()
 
         if self:GetChecked() then
             print("|cFF00FF00[Oculus]|r " .. L[labelKey] .. " " .. L["Module Enabled"])
@@ -191,7 +200,7 @@ local function createSubPanel(name, labelKey, descKey)
     end)
 
     -- Content anchor for modules to add settings
-    panel.ContentAnchor = enableCB
+    panel.ContentAnchor = enableCheckbox
     panel.YOffset = -50
 
     -- Store reference
@@ -208,7 +217,7 @@ function Oculus:ShowExportDialog()
     end
 
     if self.ExportDialog then
-        local encoded = Oculus.Utils.ExportProfile(OculusDB or {})
+        local encoded = Oculus.Utils.ExportProfile(OculusStorage or {})
         self.ExportDialog.EditBox:SetText(encoded)
         self.ExportDialog.EditBox:HighlightText()
         self.ExportDialog.EditBox:SetFocus()
@@ -255,7 +264,7 @@ function Oculus:ShowExportDialog()
     dialog.EditBox = editBox
 
     -- Generate Base64 encoded string
-    local encoded = Oculus.Utils.ExportProfile(OculusDB or {})
+    local encoded = Oculus.Utils.ExportProfile(OculusStorage or {})
     editBox:SetText(encoded)
     editBox:HighlightText()
     editBox:SetFocus()
@@ -341,8 +350,8 @@ function Oculus:ShowImportDialog()
 
         local data, err = Oculus.Utils.ImportProfile(text)
         if data then
-            OculusDB = data
-            Oculus.DB = OculusDB
+            OculusStorage = data
+            Oculus.Storage = OculusStorage
             print("|cFF00FF00[Oculus]|r " .. L["Import Success"])
             dialog:Hide()
         else
@@ -431,9 +440,23 @@ StaticPopupDialogs["OCULUS_LANGUAGE_CONFIRM"] = {
 -- Event Handler
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
+
 eventFrame:SetScript("OnEvent", function(self, event, loadedAddon)
-    if loadedAddon == addonName then
+    if event == "ADDON_LOADED" and loadedAddon == addonName then
+        -- Register settings immediately
         registerSettings()
         self:UnregisterEvent("ADDON_LOADED")
+
+    elseif event == "PLAYER_LOGIN" then
+        -- Update all checkboxes after Storage is fully initialized
+        C_Timer.After(0.2, function()
+            for _, panel in pairs(Oculus.ModulePanels) do
+                if panel.EnableCheckbox and panel.EnableCheckbox.UpdateState then
+                    panel.EnableCheckbox:UpdateState()
+                end
+            end
+        end)
+        self:UnregisterEvent("PLAYER_LOGIN")
     end
 end)

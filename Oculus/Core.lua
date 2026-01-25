@@ -27,7 +27,7 @@ local DEFAULTS = {
 -- Module State
 local L = Oculus.L
 Oculus.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.0.0"
-Oculus.DB = {}
+Oculus.Storage = {}
 Oculus.Modules = {}
 
 
@@ -49,12 +49,12 @@ end
 
 -- Initialize Database
 local function initializeDB()
-    if not OculusDB then
-        OculusDB = {}
+    if not OculusStorage then
+        OculusStorage = {}
     end
 
-    deepMerge(OculusDB, DEFAULTS)
-    Oculus.DB = OculusDB
+    deepMerge(OculusStorage, DEFAULTS)
+    Oculus.Storage = OculusStorage
 end
 
 
@@ -82,7 +82,7 @@ function Oculus:EnableModule(name)
         module:Enable()
     end
 
-    self.DB.EnabledModules[name] = true
+    self.Storage.EnabledModules[name] = true
     print("|cFF00FF00[Oculus]|r " .. name .. " " .. L["Module Enabled"])
     return true
 end
@@ -99,14 +99,14 @@ function Oculus:DisableModule(name)
         module:Disable()
     end
 
-    self.DB.EnabledModules[name] = false
+    self.Storage.EnabledModules[name] = false
     print("|cFFFFFF00[Oculus]|r " .. name .. " " .. L["Module Disabled"])
     return true
 end
 
 -- Is Module Enabled
 function Oculus:IsModuleEnabled(name)
-    return self.DB.EnabledModules[name] == true
+    return self.Storage.EnabledModules[name] == true
 end
 
 
@@ -148,7 +148,7 @@ local function handleSlashCommand(msg)
 
     elseif command == "status" then
         print("|cFF00FF00[Oculus]|r " .. L["Module Status"] .. ":")
-        for name, enabled in pairs(Oculus.DB.EnabledModules) do
+        for name, enabled in pairs(Oculus.Storage.EnabledModules) do
             local status = enabled
                 and "|cFF00FF00" .. L["Module Enabled"] .. "|r"
                 or "|cFFFF0000" .. L["Module Disabled"] .. "|r"

@@ -90,11 +90,17 @@ LOCALES["enUS"] = {
     -- RaidFrames Config
     ["Aura Display"] = "Aura Display",
     ["Aura Display Desc"] = "Configure buff and debuff icon display on raid frames.",
+    ["Frame Settings"] = "Frame Settings",
+    ["Hide Role Icon"] = "Hide Role Icon",
+    ["Hide Name"] = "Hide Name",
+    ["Hide Aggro Border"] = "Hide Aggro Border",
+    ["Hide Party Title"] = "Hide Party Title",
     ["Buff Settings"] = "Buff Settings",
     ["Debuff Settings"] = "Debuff Settings",
     ["Timer Settings"] = "Timer Settings",
     ["Buff Icon Size"] = "Buff Icon Size",
     ["Debuff Icon Size"] = "Debuff Icon Size",
+    ["Hide Dispel Overlay"] = "Hide Dispel Overlay",
     ["Show Duration Timer"] = "Show Duration Timer",
     ["Expiring Warning (%)"] = "Expiring Warning (%)",
     ["Actions"] = "Actions",
@@ -109,8 +115,18 @@ LOCALES["enUS"] = {
     -- RaidFrames Tooltips
     ["Tooltip Buff Size"] = "Size of buff icons displayed on raid frames.",
     ["Tooltip Debuff Size"] = "Size of debuff icons displayed on raid frames.",
+    ["Tooltip Hide Dispel Overlay"] = "Hide the dispel overlay on party/raid frames when you can dispel a debuff.",
     ["Tooltip Show Timer"] = "Display remaining time on aura icons.",
     ["Tooltip Expiring Warning"] = "When remaining duration falls below this percentage, show a red glow warning.",
+
+    -- Tracked Spells
+    ["Tracked Spells"] = "Tracked Spells",
+    ["Tracked Spells Desc"] = "Spells that will show a flashing border when duration falls below threshold.",
+    ["Add Spell ID"] = "Add Spell ID",
+    ["Enter Spell ID"] = "Enter Spell ID...",
+    ["Add"] = "Add",
+    ["Remove"] = "Remove",
+    ["No Tracked Spells"] = "No spells tracked. Add a spell ID above.",
 
     -- RaidFrames Layout Settings
     ["Buffs Per Row"] = "Buffs Per Row",
@@ -151,12 +167,12 @@ LOCALES["koKR"] = {
     -- Module Names
     ["Unit Frames"] = "유닛 프레임",
     ["Raid Frames"] = "레이드 프레임",
-    ["Arena Frames"] = "투기장 프레임",
+    ["Arena Frames"] = "아레나 프레임",
 
     -- Module Descriptions
     ["Unit Frames Desc"] = "플레이어/대상/주시대상 버프/디버프 필터",
     ["Raid Frames Desc"] = "파티 버프/디버프 + 쿨다운 트래킹 + 적 시전 알림",
-    ["Arena Frames Desc"] = "투기장 프레임 정렬 + 버프/디버프 필터",
+    ["Arena Frames Desc"] = "아레나 프레임 정렬 + 버프/디버프 필터",
 
     -- Export/Import Dialog
     ["Export Profile"] = "프로필 내보내기",
@@ -200,11 +216,17 @@ LOCALES["koKR"] = {
     -- RaidFrames Config
     ["Aura Display"] = "오라 표시",
     ["Aura Display Desc"] = "레이드 프레임에 표시되는 버프/디버프 아이콘을 설정합니다.",
+    ["Frame Settings"] = "프레임 설정",
+    ["Hide Role Icon"] = "역할군 아이콘 숨김",
+    ["Hide Name"] = "이름 숨김",
+    ["Hide Aggro Border"] = "어그로 테두리 숨김",
+    ["Hide Party Title"] = "파티 제목 숨김",
     ["Buff Settings"] = "버프 설정",
     ["Debuff Settings"] = "디버프 설정",
     ["Timer Settings"] = "타이머 설정",
     ["Buff Icon Size"] = "버프 아이콘 크기",
     ["Debuff Icon Size"] = "디버프 아이콘 크기",
+    ["Hide Dispel Overlay"] = "해제 오버레이 숨김",
     ["Show Duration Timer"] = "남은 시간 표시",
     ["Expiring Warning (%)"] = "만료 경고 (%)",
     ["Actions"] = "동작",
@@ -219,8 +241,18 @@ LOCALES["koKR"] = {
     -- RaidFrames Tooltips
     ["Tooltip Buff Size"] = "레이드 프레임에 표시되는 버프 아이콘의 크기입니다.",
     ["Tooltip Debuff Size"] = "레이드 프레임에 표시되는 디버프 아이콘의 크기입니다.",
+    ["Tooltip Hide Dispel Overlay"] = "해제 가능한 디버프가 있을 때 파티/레이드 프레임에 표시되는 오버레이를 숨깁니다.",
     ["Tooltip Show Timer"] = "오라 아이콘에 남은 시간을 표시합니다.",
     ["Tooltip Expiring Warning"] = "남은 시간이 이 비율 미만일 때 빨간 테두리 경고를 표시합니다.",
+
+    -- Tracked Spells
+    ["Tracked Spells"] = "추적할 주문",
+    ["Tracked Spells Desc"] = "지속시간이 임계값 미만으로 떨어지면 깜빡이는 테두리를 표시할 주문입니다.",
+    ["Add Spell ID"] = "주문 ID 추가",
+    ["Enter Spell ID"] = "주문 ID 입력...",
+    ["Add"] = "추가",
+    ["Remove"] = "제거",
+    ["No Tracked Spells"] = "추적 중인 주문이 없습니다. 위에서 주문 ID를 추가하세요.",
 
     -- RaidFrames Layout Settings
     ["Buffs Per Row"] = "행당 버프 개수",
@@ -251,8 +283,8 @@ LOCALES["enUS"]["Language Changed"] = "Language changed. /reload to apply."
 -- Get Current Language (checks saved setting first, then client locale)
 function Oculus:GetLanguage()
     -- Check saved setting
-    if OculusDB and OculusDB.Language and LOCALES[OculusDB.Language] then
-        return OculusDB.Language
+    if OculusStorage and OculusStorage.Language and LOCALES[OculusStorage.Language] then
+        return OculusStorage.Language
     end
     -- Fall back to client locale
     local clientLocale = GetLocale()
@@ -264,10 +296,10 @@ function Oculus:SetLanguage(lang)
     if not LOCALES[lang] then
         return false
     end
-    if not OculusDB then
-        OculusDB = {}
+    if not OculusStorage then
+        OculusStorage = {}
     end
-    OculusDB.Language = lang
+    OculusStorage.Language = lang
     return true
 end
 

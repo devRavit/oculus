@@ -28,25 +28,36 @@ addon.RaidFrames = RaidFrames
 -- Constants
 local DEFAULTS = {
     Enabled = true,
+    Frame = {
+        HideRoleIcon = false,
+        HideName = false,
+        HideAggroBorder = false,
+        HidePartyTitle = false,
+    },
     Auras = {
         Enabled = true,
         Buff = {
             Size = 20,
             PerRow = 3,
-            Anchor = "BOTTOMLEFT",
+            Anchor = "BOTTOMRIGHT",
             UseCustomPosition = false,
             Spacing = 0,
         },
         Debuff = {
             Size = 24,
             PerRow = 3,
-            Anchor = "CENTER",
+            Anchor = "BOTTOMLEFT",
             UseCustomPosition = false,
             Spacing = 0,
+            HideDispelOverlay = false,
         },
         Timer = {
             Show = true,
+            ShowExpiringBorder = true,
             ExpiringThreshold = 0.25, -- 25% remaining triggers border glow
+            TrackedSpells = {
+                [33763] = true, -- 피어나는 생명
+            },
         },
     },
     Cooldowns = {
@@ -90,12 +101,15 @@ end
 
 -- Initialize Storage
 local function initializeStorage()
-    if not Oculus_RaidFramesDB then
-        Oculus_RaidFramesDB = {}
+    if not OculusRaidFramesStorage then
+        OculusRaidFramesStorage = {}
     end
 
-    mergeDefaults(Oculus_RaidFramesDB, DEFAULTS)
-    RaidFrames.Storage = Oculus_RaidFramesDB
+    mergeDefaults(OculusRaidFramesStorage, DEFAULTS)
+    RaidFrames.Storage = OculusRaidFramesStorage
+
+    -- Clear debug log on every reload to prevent excessive buildup
+    OculusRaidFramesStorage.DebugLog = {}
 end
 
 -- Get Storage (for external access, ensures Storage exists)
@@ -103,11 +117,11 @@ function RaidFrames:GetStorage()
     -- Only initialize if Storage is nil AND we're after ADDON_LOADED
     if not self.Storage then
         -- Fallback initialization
-        if not Oculus_RaidFramesDB then
-            Oculus_RaidFramesDB = {}
+        if not OculusRaidFramesStorage then
+            OculusRaidFramesStorage = {}
         end
-        mergeDefaults(Oculus_RaidFramesDB, DEFAULTS)
-        self.Storage = Oculus_RaidFramesDB
+        mergeDefaults(OculusRaidFramesStorage, DEFAULTS)
+        self.Storage = OculusRaidFramesStorage
     end
     return self.Storage
 end
@@ -161,7 +175,11 @@ function RaidFrames:DebugStorage()
     if storage then
         print("  Enabled: " .. tostring(storage.Enabled))
         if storage.Frame then
-            print("  Frame.Scale: " .. tostring(storage.Frame.Scale))
+            print("  Frame.HideRoleIcon: " .. tostring(storage.Frame.HideRoleIcon))
+            print("  Frame.HideName: " .. tostring(storage.Frame.HideName))
+            print("  Frame.HideAggroBorder: " .. tostring(storage.Frame.HideAggroBorder))
+        else
+            print("  Frame: nil")
         end
         if storage.Auras then
             print("  Auras.Enabled: " .. tostring(storage.Auras.Enabled))
@@ -180,6 +198,8 @@ function RaidFrames:DebugStorage()
             if storage.Auras.Timer then
                 print("  Auras.Timer.Show: " .. tostring(storage.Auras.Timer.Show))
                 print("  Auras.Timer.ExpiringThreshold: " .. tostring(storage.Auras.Timer.ExpiringThreshold))
+            else
+                print("  Auras.Timer: nil")
             end
         else
             print("  Auras: nil")
@@ -198,6 +218,7 @@ end
 
 -- Slash command for debug
 SLASH_OCULUSRF1 = "/ocrf"
+SLASH_OCULUSRF2 = "/ㅐㅊㄱㄹ" -- Korean keyboard typo support
 SlashCmdList["OCULUSRF"] = function(msg)
     local command = msg:lower():trim()
     if command == "debug" then
@@ -210,11 +231,66 @@ SlashCmdList["OCULUSRF"] = function(msg)
             addon.Auras:RefreshAllFrames()
             print("|cFF00FF00[Oculus]|r Frames refreshed")
         end
+    elseif command == "timer" or command == "timers" then
+        -- Debug timer state
+        print("|cFF00FF00[Oculus]|r Timer Debug:")
+        local count = 0
+        local visibleCount = 0
+        for i = 1, 5 do
+            local frame = _G["CompactPartyFrameMember" .. i]
+            if frame and frame.buffFrames then
+                for _, buff in ipairs(frame.buffFrames) do
+                    if buff.OculusTimer then
+                        count = count + 1
+                        if buff.OculusTimer:IsShown() then
+                            visibleCount = visibleCount + 1
+                            local text = buff.OculusTimer:GetText()
+                            print("  Buff timer: shown, text=" .. tostring(text))
+                        else
+                            print("  Buff timer: HIDDEN")
+                        end
+                    end
+                end
+            end
+        end
+        print("  Total timers: " .. count .. ", Visible: " .. visibleCount)
+    elseif command == "log" then
+        -- Print debug log
+        if addon.Auras and addon.Auras.PrintDebugLog then
+            addon.Auras:PrintDebugLog()
+        end
+    elseif command == "clearlog" then
+        -- Clear debug log
+        if addon.Auras and addon.Auras.ClearDebugLog then
+            addon.Auras:ClearDebugLog()
+        end
+    elseif command == "inspect" or command == "debuff" then
+        -- Inspect party frame structure
+        local frame = _G["CompactPartyFrameMember1"]
+        if frame then
+            print("|cFF00FF00[Oculus]|r Party frame structure:")
+            print(string.format("  DispelOverlay: %s", tostring(frame.DispelOverlay ~= nil)))
+            if frame.DispelOverlay then
+                print(string.format("    Shown: %s", tostring(frame.DispelOverlay:IsShown())))
+            end
+
+            local frameName = frame:GetName()
+            local dispelIcon = _G[frameName .. "DispelDebuffIcon"]
+            print(string.format("  DispelDebuffIcon (global): %s", tostring(dispelIcon ~= nil)))
+            if dispelIcon then
+                print(string.format("    Shown: %s", tostring(dispelIcon:IsShown())))
+            end
+        else
+            print("|cFFFF0000[Oculus]|r CompactPartyFrameMember1 not found")
+        end
     else
         print("|cFF00FF00[Oculus RaidFrames]|r Commands:")
         print("  /ocrf debug - Show Storage state")
         print("  /ocrf enable - Force enable module")
         print("  /ocrf refresh - Refresh all frames")
+        print("  /ocrf timer - Debug timer state")
+        print("  /ocrf log - Show debug log")
+        print("  /ocrf clearlog - Clear debug log")
     end
 end
 

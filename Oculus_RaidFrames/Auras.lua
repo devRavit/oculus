@@ -37,6 +37,7 @@ addon.Auras = Auras
 -- State (accessible externally via Auras.IsEnabled)
 Auras.IsEnabled = false
 local isEnabled = false  -- Local cache for performance
+local inCombat = false  -- Track combat state
 
 
 -- Masque Support
@@ -53,20 +54,22 @@ local DEFAULTS = {
     Buff = {
         Size = 20,
         PerRow = 3,
-        Anchor = "BOTTOMLEFT",
+        Anchor = "BOTTOMRIGHT",
         UseCustomPosition = false,
         Spacing = 0,
     },
     Debuff = {
         Size = 24,
         PerRow = 3,
-        Anchor = "CENTER",
+        Anchor = "BOTTOMLEFT",
         UseCustomPosition = false,
         Spacing = 0,
+        HideDispelOverlay = false,
     },
     Timer = {
         Show = true,
         ExpiringThreshold = 0.25,
+        TrackedSpells = {},
     },
 }
 
@@ -84,54 +87,113 @@ local function getRawStorage()
     return raidFrames.Storage and raidFrames.Storage.Auras
 end
 
+-- Get Frame settings from parent RaidFrames module
+local function getFrameSettings()
+    local raidFrames = addon.RaidFrames
+    if not raidFrames then return nil end
+
+    local storage = nil
+    if raidFrames.GetStorage then
+        storage = raidFrames:GetStorage()
+    end
+
+    if not storage or not storage.Frame then return nil end
+
+    local settings = {}
+
+    -- Proper nil check that handles false values correctly
+    if storage.Frame.HideRoleIcon == nil then
+        settings.HideRoleIcon = false
+    else
+        settings.HideRoleIcon = storage.Frame.HideRoleIcon
+    end
+
+    if storage.Frame.HideName == nil then
+        settings.HideName = false
+    else
+        settings.HideName = storage.Frame.HideName
+    end
+
+    if storage.Frame.HideAggroBorder == nil then
+        settings.HideAggroBorder = false
+    else
+        settings.HideAggroBorder = storage.Frame.HideAggroBorder
+    end
+
+    if storage.Frame.HidePartyTitle == nil then
+        settings.HidePartyTitle = false
+    else
+        settings.HidePartyTitle = storage.Frame.HidePartyTitle
+    end
+
+    return settings
+end
+
+-- Deep merge helper (storage overwrites defaults, preserves false/0 values)
+local function deepMerge(target, source)
+    local result = {}
+    -- Start with source (defaults)
+    for key, value in pairs(source) do
+        if type(value) == "table" then
+            result[key] = deepMerge(target[key] or {}, value)
+        else
+            -- Use target value if it exists (even if false/0), otherwise use default
+            result[key] = target[key] ~= nil and target[key] or value
+        end
+    end
+    -- Add any keys from target that aren't in defaults
+    for key, value in pairs(target) do
+        if result[key] == nil then
+            if type(value) == "table" then
+                result[key] = deepMerge(value, {})
+            else
+                result[key] = value
+            end
+        end
+    end
+    return result
+end
+
 -- Build configuration from Storage with defaults
 local function buildConfig()
     local storage = getRawStorage() or {}
-
-    return {
-        Buff = {
-            Size = (storage.Buff and storage.Buff.Size) or DEFAULTS.Buff.Size,
-            PerRow = (storage.Buff and storage.Buff.PerRow) or DEFAULTS.Buff.PerRow,
-            Anchor = (storage.Buff and storage.Buff.Anchor) or DEFAULTS.Buff.Anchor,
-            UseCustomPosition = (storage.Buff and storage.Buff.UseCustomPosition) or DEFAULTS.Buff.UseCustomPosition,
-            Spacing = (storage.Buff and storage.Buff.Spacing ~= nil) and storage.Buff.Spacing or DEFAULTS.Buff.Spacing,
-        },
-        Debuff = {
-            Size = (storage.Debuff and storage.Debuff.Size) or DEFAULTS.Debuff.Size,
-            PerRow = (storage.Debuff and storage.Debuff.PerRow) or DEFAULTS.Debuff.PerRow,
-            Anchor = (storage.Debuff and storage.Debuff.Anchor) or DEFAULTS.Debuff.Anchor,
-            UseCustomPosition = (storage.Debuff and storage.Debuff.UseCustomPosition) or DEFAULTS.Debuff.UseCustomPosition,
-            Spacing = (storage.Debuff and storage.Debuff.Spacing ~= nil) and storage.Debuff.Spacing or DEFAULTS.Debuff.Spacing,
-        },
-        Timer = {
-            Show = (storage.Timer and storage.Timer.Show ~= nil) and storage.Timer.Show or DEFAULTS.Timer.Show,
-            ExpiringThreshold = (storage.Timer and storage.Timer.ExpiringThreshold) or DEFAULTS.Timer.ExpiringThreshold,
-        },
-    }
+    return deepMerge(storage, DEFAULTS)
 end
 
--- Legacy aliases for backward compatibility
-local function getRawDB()
-    return getRawStorage()
-end
+-- Initialize timer for an aura frame (uses Blizzard's built-in timer)
+local function initializeTimer(auraFrame, showTimer)
+    if not auraFrame or not auraFrame.cooldown then return end
 
-local function getDB()
-    return getRawStorage()
-end
-
--- Create or get timer text for an aura frame
-local function getTimerText(auraFrame)
-    if not auraFrame.OculusTimer then
-        local timer = auraFrame:CreateFontString(nil, "OVERLAY", nil, 7)
-        timer:SetFont(STANDARD_TEXT_FONT, 10, "OUTLINE")
-        timer:SetPoint("CENTER", auraFrame, "CENTER", 0, 0)
-        timer:SetTextColor(1, 1, 0.6)
-        timer:SetDrawLayer("OVERLAY", 7)
-        auraFrame.OculusTimer = timer
+    -- Use Blizzard's built-in cooldown text
+    if showTimer then
+        auraFrame.cooldown:SetHideCountdownNumbers(false)
+    else
+        auraFrame.cooldown:SetHideCountdownNumbers(true)
     end
-    -- Ensure timer is always on top
-    auraFrame.OculusTimer:SetDrawLayer("OVERLAY", 7)
-    return auraFrame.OculusTimer
+
+    -- Customize Blizzard's cooldown text appearance (only once)
+    if showTimer and not auraFrame.OculusTimerStyled then
+        local cooldownText = auraFrame.cooldown.Text or auraFrame.cooldown.text
+
+        if not cooldownText then
+            for i = 1, auraFrame.cooldown:GetNumRegions() do
+                local region = select(i, auraFrame.cooldown:GetRegions())
+                if region and region:GetObjectType() == "FontString" then
+                    cooldownText = region
+                    break
+                end
+            end
+        end
+
+        if cooldownText then
+            cooldownText:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+            cooldownText:SetTextColor(1, 1, 0)
+            auraFrame.OculusCooldownText = cooldownText
+            auraFrame.OculusTimerStyled = true
+        end
+    end
+
+    auraFrame.OculusTimerInitialized = true
 end
 
 -- Update timer font size based on aura size
@@ -151,32 +213,58 @@ local function registerWithMasque(auraFrame)
     end
 
     if masqueGroup and not auraFrame.OculusMasqueRegistered then
-        masqueGroup:AddButton(auraFrame, {
-            Icon = auraFrame.Icon or auraFrame.icon,
-            Cooldown = auraFrame.cooldown or auraFrame.Cooldown,
-            Normal = auraFrame:GetNormalTexture(),
-            Border = auraFrame.Border or auraFrame.border,
-        })
-        auraFrame.OculusMasqueRegistered = true
+        -- Use pcall to safely handle any secret value errors from Masque
+        local success = pcall(function()
+            masqueGroup:AddButton(auraFrame, {
+                Icon = auraFrame.Icon or auraFrame.icon,
+                Cooldown = auraFrame.cooldown or auraFrame.Cooldown,
+                Normal = auraFrame:GetNormalTexture(),
+                Border = auraFrame.Border or auraFrame.border,
+            })
+        end)
+
+        if success then
+            auraFrame.OculusMasqueRegistered = true
+        end
     end
 end
 
--- Create or get expiring border for an aura frame
-local function getExpiringBorder(auraFrame)
-    if not auraFrame.OculusExpiringBorder then
-        local border = auraFrame:CreateTexture(nil, "OVERLAY", nil, 6)
-        border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
-        border:SetBlendMode("ADD")
-        border:SetAlpha(0.8)
-        border:SetPoint("CENTER", auraFrame, "CENTER", 0, 0)
-        border:SetSize(auraFrame:GetWidth() * 1.5, auraFrame:GetHeight() * 1.5)
-        border:SetVertexColor(1, 0.3, 0.3) -- Red glow
-        border:Hide()
+-- Initialize expiring border for an aura frame (combat-safe with pcall)
+local borderCreationCount = 0
+local borderFailCount = 0
+
+local function initializeBorder(auraFrame, size)
+    if not auraFrame then return end
+    if auraFrame.OculusExpiringBorder then return end
+
+    -- Try to create border (works even during combat with pcall)
+    local borderSize = (size or 20) * 2.2
+    local success, border = pcall(function()
+        local b = auraFrame:CreateTexture(nil, "OVERLAY")
+        b:SetDrawLayer("OVERLAY", 7)
+        b:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+        b:SetBlendMode("ADD")
+        b:SetPoint("CENTER", auraFrame, "CENTER", 0, 0)
+        b:SetSize(borderSize, borderSize)
+        b:SetVertexColor(1, 1, 0)  -- Yellow
+        b:Hide()
+        return b
+    end)
+
+    if success and border then
         auraFrame.OculusExpiringBorder = border
+        borderCreationCount = borderCreationCount + 1
+        if DEBUG_TIMER and borderCreationCount <= 3 then
+            logDebug(string.format("Border created #%d, size=%.1f, inCombat=%s",
+                borderCreationCount, borderSize, tostring(InCombatLockdown())))
+        end
+    else
+        borderFailCount = borderFailCount + 1
+        if DEBUG_TIMER and borderFailCount <= 3 then
+            logDebug(string.format("Border creation failed #%d, inCombat=%s",
+                borderFailCount, tostring(InCombatLockdown())))
+        end
     end
-    -- Ensure border is always visible (but below timer)
-    auraFrame.OculusExpiringBorder:SetDrawLayer("OVERLAY", 6)
-    return auraFrame.OculusExpiringBorder
 end
 
 -- Format time for display
@@ -217,60 +305,197 @@ function Auras:CalculateAnchorOffset(anchor, col, row, size, spacing, perRow)
     return xOffset, yOffset
 end
 
--- Update timer and expiring state for an aura
-local function updateAuraTimer(auraFrame, expirationTime, duration, config, size)
-    if not config then
-        config = buildConfig()
+-- Debug flag (set to true to enable debug output)
+-- Debug mode: set to false to disable debug logging
+local DEBUG_TIMER = false
+
+-- Debug log system (saves to file via SavedVariables)
+local MAX_LOG_ENTRIES = 500
+local startTime = GetTime()
+
+local function logDebug(message)
+    if not DEBUG_TIMER then return end
+
+    -- Initialize log storage
+    if not OculusRaidFramesStorage then
+        OculusRaidFramesStorage = {}
     end
+    if not OculusRaidFramesStorage.DebugLog then
+        OculusRaidFramesStorage.DebugLog = {}
+    end
+
+    -- Use GetTime() for timestamp (safer than date())
+    local elapsed = GetTime() - startTime
+    local minutes = math.floor(elapsed / 60)
+    local seconds = math.floor(elapsed % 60)
+    local timestamp = string.format("+%02d:%02d", minutes, seconds)
+    local entry = string.format("[%s] %s", timestamp, message)
+
+    -- Add to log (will be saved to file on logout/reload)
+    table.insert(OculusRaidFramesStorage.DebugLog, entry)
+
+    -- Keep only last MAX_LOG_ENTRIES
+    if #OculusRaidFramesStorage.DebugLog > MAX_LOG_ENTRIES then
+        table.remove(OculusRaidFramesStorage.DebugLog, 1)
+    end
+end
+
+local function printDebugLog()
+    if not OculusRaidFramesStorage or not OculusRaidFramesStorage.DebugLog then
+        print("|cFFFF0000[Oculus]|r No debug log found. Enable module and use features to generate logs.")
+        return
+    end
+
+    local logCount = #OculusRaidFramesStorage.DebugLog
+    print("|cFF00FF00[Oculus Debug Log]|r " .. logCount .. " entries total")
+    print("|cFFFFFF00File location:|r WTF/Account/<account>/SavedVariables/Oculus_RaidFrames.lua")
+    print("|cFFFFFF00Tip:|r Use /reload to save current logs to file")
+    print("|cFF888888Borders created: " .. borderCreationCount .. " | Failed: " .. borderFailCount .. "|r")
+    print(" ")
+
+    if logCount == 0 then
+        print("|cFFFF0000No log entries yet.|r")
+        return
+    end
+
+    -- Print last 20 entries only to chat
+    local start = math.max(1, logCount - 19)
+    for i = start, logCount do
+        print(OculusRaidFramesStorage.DebugLog[i])
+    end
+
+    if logCount > 20 then
+        print(" ")
+        print(string.format("|cFF888888... (%d more entries in file - /reload to save)|r", logCount - 20))
+    end
+end
+
+local function clearDebugLog()
+    if OculusRaidFramesStorage then
+        OculusRaidFramesStorage.DebugLog = {}
+    end
+    print("|cFF00FF00[Oculus]|r Debug log cleared")
+end
+
+-- Setup OnUpdate script for aura frame to manage expiring border
+local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, size)
+    if not auraFrame or not unit or not auraInstanceID then return end
 
     local showTimer = config.Timer.Show
-    local expiringThreshold = config.Timer.ExpiringThreshold
 
-    local timer = getTimerText(auraFrame)
-    local border = getExpiringBorder(auraFrame)
+    -- Initialize timer (Blizzard's built-in)
+    initializeTimer(auraFrame, showTimer)
 
-    -- Hide Blizzard's default cooldown text
-    if auraFrame.cooldown then
-        auraFrame.cooldown:SetHideCountdownNumbers(true)
+    -- Initialize border (always try, pcall makes it safe)
+    initializeBorder(auraFrame, size)
+
+    -- Store data for OnUpdate (always update stored data)
+    auraFrame.OculusUnit = unit
+    auraFrame.OculusAuraInstanceID = auraInstanceID
+    auraFrame.OculusConfig = config
+    auraFrame.OculusSize = size
+
+    -- Setup OnUpdate script ONLY ONCE (SetScript is protected during combat)
+    -- Data above is always updated, so same script will use new auraInstanceID
+    if not auraFrame.OculusOnUpdate then
+        auraFrame:SetScript("OnUpdate", function(self, elapsed)
+            if not isEnabled then return end
+            if not self.OculusUnit or not self.OculusAuraInstanceID then return end
+            if not self:IsShown() then return end
+
+            local cfg = self.OculusConfig or buildConfig()
+            local showTimer = cfg.Timer.Show
+            local expiringThreshold = cfg.Timer.ExpiringThreshold
+
+            -- Update Blizzard timer visibility and style
+            if self.cooldown then
+                if showTimer then
+                    self.cooldown:SetHideCountdownNumbers(false)
+                    if self.OculusCooldownText and self.OculusSize then
+                        local fontSize = math.max(9, math.floor(self.OculusSize * 0.55))
+                        pcall(function()
+                            self.OculusCooldownText:SetFont(STANDARD_TEXT_FONT, fontSize, "OUTLINE")
+                            self.OculusCooldownText:SetTextColor(1, 1, 0)
+                        end)
+                    end
+                else
+                    self.cooldown:SetHideCountdownNumbers(true)
+                end
+            end
+
+            -- Update border size if needed
+            if self.OculusExpiringBorder and self.OculusSize then
+                pcall(function()
+                    self.OculusExpiringBorder:SetSize(self.OculusSize * 2.2, self.OculusSize * 2.2)
+                end)
+            end
+
+            -- Get aura data and update expiring border (protected from secret values)
+            if self.OculusExpiringBorder then
+                local success, remaining, duration, spellId = pcall(function()
+                    local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(self.OculusUnit, self.OculusAuraInstanceID)
+                    if aura and aura.expirationTime and aura.duration and aura.expirationTime > 0 and aura.duration > 0 then
+                        return aura.expirationTime - GetTime(), aura.duration, aura.spellId
+                    end
+                    return nil, nil, nil
+                end)
+
+                -- Check if this spell should be tracked
+                local trackedSpells = cfg.Timer.TrackedSpells or {}
+                local shouldTrack = trackedSpells[spellId]
+
+                if DEBUG_TIMER and spellId == 33763 then
+                    local pct = duration and (remaining / duration) or 0
+                    logDebug(string.format("[OnUpdate] Spell %d: remaining=%.1f, duration=%.1f, percent=%.1f%%, threshold=%.1f%%",
+                        spellId, remaining or 0, duration or 0, pct * 100, expiringThreshold * 100))
+                end
+
+                if success and remaining and remaining > 0 and duration and shouldTrack then
+                    local remainingPercent = remaining / duration
+
+                    if remainingPercent < expiringThreshold then
+                        pcall(function()
+                            self.OculusExpiringBorder:Show()
+                            -- Fast yellow flash: 0.4 to 1.0 alpha range
+                            local pulse = 0.5 + 0.5 * math.sin(GetTime() * 10)
+                            self.OculusExpiringBorder:SetAlpha(0.4 + pulse * 0.6)
+                        end)
+                    else
+                        self.OculusExpiringShown = false
+                        self.OculusExpiringBorder:Hide()
+                    end
+                else
+                    self.OculusExpiringBorder:Hide()
+                end
+            end
+        end)
+        auraFrame.OculusOnUpdate = true
+    end
+end
+
+-- Pre-create borders for all buff/debuff frames (combat-safe)
+local function preCreateTimers(frame)
+    if not frame then return end
+
+    local config = buildConfig()
+    local buffSize = config.Buff.Size or 20
+    local debuffSize = config.Debuff.Size or 24
+    local showTimer = config.Timer.Show
+
+    -- Pre-initialize buff frames
+    if frame.buffFrames then
+        for i, buff in ipairs(frame.buffFrames) do
+            initializeTimer(buff, showTimer)
+            initializeBorder(buff, buffSize)
+        end
     end
 
-    -- Update sizes to match current aura size (use provided size to avoid secret value errors)
-    if size then
-        updateTimerFontSize(auraFrame, size)
-        border:SetSize(size * 1.5, size * 1.5)
-    end
-
-    -- Safely check if values are valid (protected auras have secret values that can't be compared)
-    local success, remaining = pcall(function()
-        if expirationTime and duration and expirationTime > 0 and duration > 0 then
-            return expirationTime - GetTime()
+    -- Pre-initialize debuff frames
+    if frame.debuffFrames then
+        for i, debuff in ipairs(frame.debuffFrames) do
+            initializeTimer(debuff, showTimer)
+            initializeBorder(debuff, debuffSize)
         end
-        return nil
-    end)
-
-    if success and remaining and remaining > 0 then
-        -- Show timer
-        if showTimer then
-            timer:SetText(formatTime(remaining))
-            timer:Show()
-        else
-            timer:Hide()
-        end
-
-        -- Check if expiring (< threshold remaining)
-        local remainingPercent = remaining / duration
-        if remainingPercent < expiringThreshold then
-            border:Show()
-            -- Pulse effect based on remaining time
-            local pulse = 0.5 + 0.5 * math.sin(GetTime() * 4)
-            border:SetAlpha(0.5 + pulse * 0.5)
-        else
-            border:Hide()
-        end
-    else
-        -- No valid duration (permanent buff or protected aura)
-        timer:Hide()
-        border:Hide()
     end
 end
 
@@ -293,7 +518,115 @@ function Auras:ApplySettings(frame)
         return
     end
 
+    -- Pre-create timers if not in combat (does nothing if already created)
+    if not InCombatLockdown() then
+        preCreateTimers(frame)
+    end
+
     local configuration = buildConfig()
+    local frameSettings = getFrameSettings()
+    local inCombat = InCombatLockdown()
+
+    -- Hide dispel overlay if configured
+    if configuration.Debuff.HideDispelOverlay then
+        if frame.DispelOverlay then
+            frame.DispelOverlay:Hide()
+            frame.DispelOverlay:SetAlpha(0)
+        end
+
+        -- DispelDebuffIcon is a global frame (created dynamically when dispellable debuff appears)
+        local frameName = frame:GetName()
+        if frameName then
+            local dispelIcon = _G[frameName .. "DispelDebuffIcon"]
+            if dispelIcon then
+                dispelIcon:Hide()
+                dispelIcon:SetAlpha(0)
+            end
+        end
+    end
+
+    -- Apply frame settings (role icon, name, aggro border) - forced control
+    if frameSettings and not inCombat then
+        -- Role Icon visibility
+        if frame.roleIcon then
+            if frameSettings.HideRoleIcon then
+                -- Force hide by hooking OnShow
+                if not frame.roleIcon.OculusHideHook then
+                    frame.roleIcon:SetScript("OnShow", function(self)
+                        self:Hide()
+                    end)
+                    frame.roleIcon.OculusHideHook = true
+                end
+                frame.roleIcon:Hide()
+            else
+                -- Unhook if previously hidden
+                if frame.roleIcon.OculusHideHook then
+                    frame.roleIcon:SetScript("OnShow", nil)
+                    frame.roleIcon.OculusHideHook = nil
+                end
+
+                frame.roleIcon:Show()
+
+                -- Apply simpler, cleaner role icon style (one-time setup)
+                if not frame.roleIcon.OculusStyled then
+                    -- Adjust texture coordinates to remove padding (makes icon bigger and cleaner)
+                    -- Standard Blizzard role icons have padding, we remove it for a cleaner look
+                    frame.roleIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+                    frame.roleIcon.OculusStyled = true
+                end
+            end
+        end
+
+        -- Name visibility
+        if frame.name then
+            if frameSettings.HideName then
+                -- Force hide by hooking OnShow
+                if not frame.name.OculusHideHook then
+                    frame.name:SetScript("OnShow", function(self)
+                        self:Hide()
+                    end)
+                    frame.name.OculusHideHook = true
+                end
+                frame.name:Hide()
+            else
+                -- Unhook if previously hidden
+                if frame.name.OculusHideHook then
+                    frame.name:SetScript("OnShow", nil)
+                    frame.name.OculusHideHook = nil
+                end
+                frame.name:Show()
+            end
+        end
+
+        -- Aggro Border visibility
+        if frame.aggroHighlight then
+            if frameSettings.HideAggroBorder then
+                frame.aggroHighlight:Hide()
+                frame.aggroHighlight:SetAlpha(0)
+            else
+                frame.aggroHighlight:SetAlpha(1)
+            end
+        end
+
+        -- Party/Raid Title visibility (global frames)
+        if frameSettings.HidePartyTitle then
+            -- Hide CompactPartyFrame title
+            local partyTitle = _G["CompactPartyFrameTitle"]
+            if partyTitle then
+                partyTitle:Hide()
+                partyTitle:SetAlpha(0)
+            end
+
+            -- Hide CompactRaidGroup titles (파티1, 파티2, etc.)
+            for i = 1, 8 do
+                local groupTitle = _G["CompactRaidGroup" .. i .. "Title"]
+                if groupTitle then
+                    groupTitle:Hide()
+                    groupTitle:SetAlpha(0)
+                end
+            end
+        end
+    end
 
     -- Apply buff settings - always reposition to prevent overlap
     if frame.buffFrames then
@@ -313,42 +646,41 @@ function Auras:ApplySettings(frame)
 
         local visibleIndex = 0
         for i, buff in ipairs(frame.buffFrames) do
-            -- Always set size
-            buff:SetSize(buffSize, buffSize)
+            -- Set size only when not in combat (protected)
+            if not inCombat then
+                buff:SetSize(buffSize, buffSize)
 
-            -- Always reposition shown buffs to prevent overlap when size changes
-            if buff:IsShown() then
-                local col = visibleIndex % buffsPerRow
-                local row = math.floor(visibleIndex / buffsPerRow)
-                local xOffset, yOffset = self:CalculateAnchorOffset(
-                    buffAnchor, col, row, buffSize, buffSpacing, buffsPerRow
-                )
-                buff:ClearAllPoints()
-                -- Anchor to healthBar instead of frame to avoid overlapping power bar
-                buff:SetPoint(buffAnchor, frame.healthBar, buffAnchor, xOffset, yOffset)
-                visibleIndex = visibleIndex + 1
+                -- Always reposition shown buffs to prevent overlap when size changes
+                if buff:IsShown() then
+                    local col = visibleIndex % buffsPerRow
+                    local row = math.floor(visibleIndex / buffsPerRow)
+                    local xOffset, yOffset = self:CalculateAnchorOffset(
+                        buffAnchor, col, row, buffSize, buffSpacing, buffsPerRow
+                    )
+                    buff:ClearAllPoints()
+                    -- Anchor to healthBar instead of frame to avoid overlapping power bar
+                    buff:SetPoint(buffAnchor, frame.healthBar, buffAnchor, xOffset, yOffset)
+                    visibleIndex = visibleIndex + 1
+                end
+            else
+                -- During combat, just count visible for timer updates
+                if buff:IsShown() then
+                    visibleIndex = visibleIndex + 1
+                end
             end
 
             if buff:IsShown() then
                 registerWithMasque(buff)
-                -- Try to update timer with aura data
+                -- Setup OnUpdate script for self-managed timer
                 if buff.auraInstanceID then
-                    local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, buff.auraInstanceID)
-                    if aura then
-                        updateAuraTimer(buff, aura.expirationTime, aura.duration, configuration, buffSize)
-                    else
-                        -- Fallback: try to get timer from existing OculusTimer if it exists
-                        if buff.OculusTimer then
-                            buff.OculusTimer:Show()
-                        end
-                    end
-                else
-                    -- No auraInstanceID, ensure timer is still visible if it was created before
-                    if buff.OculusTimer then
-                        buff.OculusTimer:Show()
-                    end
+                    setupAuraOnUpdate(buff, unit, buff.auraInstanceID, configuration, buffSize)
                 end
             else
+                -- Clear OnUpdate when hidden
+                if buff.OculusOnUpdate then
+                    buff:SetScript("OnUpdate", nil)
+                    buff.OculusOnUpdate = nil
+                end
                 if buff.OculusTimer then buff.OculusTimer:Hide() end
                 if buff.OculusExpiringBorder then buff.OculusExpiringBorder:Hide() end
             end
@@ -373,42 +705,42 @@ function Auras:ApplySettings(frame)
 
         local visibleIndex = 0
         for i, debuff in ipairs(frame.debuffFrames) do
-            -- Always set size
-            debuff:SetSize(debuffSize, debuffSize)
+            -- Set size only when not in combat (protected)
+            if not inCombat then
+                debuff:SetSize(debuffSize, debuffSize)
 
-            -- Always reposition shown debuffs to prevent overlap when size changes
-            if debuff:IsShown() then
-                local col = visibleIndex % debuffsPerRow
-                local row = math.floor(visibleIndex / debuffsPerRow)
-                local xOffset, yOffset = self:CalculateAnchorOffset(
-                    debuffAnchor, col, row, debuffSize, debuffSpacing, debuffsPerRow
-                )
-                debuff:ClearAllPoints()
-                -- Anchor to healthBar instead of frame to avoid overlapping power bar
-                debuff:SetPoint(debuffAnchor, frame.healthBar, debuffAnchor, xOffset, yOffset)
-                visibleIndex = visibleIndex + 1
+                -- Always reposition shown debuffs to prevent overlap when size changes
+                if debuff:IsShown() then
+                    local col = visibleIndex % debuffsPerRow
+                    local row = math.floor(visibleIndex / debuffsPerRow)
+                    local xOffset, yOffset = self:CalculateAnchorOffset(
+                        debuffAnchor, col, row, debuffSize, debuffSpacing, debuffsPerRow
+                    )
+                    debuff:ClearAllPoints()
+                    -- Anchor to healthBar instead of frame to avoid overlapping power bar
+                    debuff:SetPoint(debuffAnchor, frame.healthBar, debuffAnchor, xOffset, yOffset)
+                    visibleIndex = visibleIndex + 1
+                end
+            else
+                -- During combat, just count visible for timer updates
+                if debuff:IsShown() then
+                    visibleIndex = visibleIndex + 1
+                end
             end
 
             if debuff:IsShown() then
                 registerWithMasque(debuff)
-                -- Try to update timer with aura data
+
+                -- Setup OnUpdate script for self-managed timer
                 if debuff.auraInstanceID then
-                    local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, debuff.auraInstanceID)
-                    if aura then
-                        updateAuraTimer(debuff, aura.expirationTime, aura.duration, configuration, debuffSize)
-                    else
-                        -- Fallback: try to get timer from existing OculusTimer if it exists
-                        if debuff.OculusTimer then
-                            debuff.OculusTimer:Show()
-                        end
-                    end
-                else
-                    -- No auraInstanceID, ensure timer is still visible if it was created before
-                    if debuff.OculusTimer then
-                        debuff.OculusTimer:Show()
-                    end
+                    setupAuraOnUpdate(debuff, unit, debuff.auraInstanceID, configuration, debuffSize)
                 end
             else
+                -- Clear OnUpdate when hidden
+                if debuff.OculusOnUpdate then
+                    debuff:SetScript("OnUpdate", nil)
+                    debuff.OculusOnUpdate = nil
+                end
                 if debuff.OculusTimer then debuff.OculusTimer:Hide() end
                 if debuff.OculusExpiringBorder then debuff.OculusExpiringBorder:Hide() end
             end
@@ -416,7 +748,174 @@ function Auras:ApplySettings(frame)
     end
 end
 
--- Refresh all frames
+-- Update timers and borders for all aura frames (called by ticker)
+function Auras:UpdateTimers()
+    if not isEnabled then return end
+
+    local configuration = buildConfig()
+    local expiringThreshold = configuration.Timer.ExpiringThreshold
+    local trackedSpells = configuration.Timer.TrackedSpells or {}
+
+    -- Log ticker activity (once on first run, then once per minute)
+    if DEBUG_TIMER and not self.LastTickerLog then
+        local count = 0
+        for id, v in pairs(trackedSpells) do
+            count = count + 1
+        end
+        logDebug(string.format("Ticker started, tracked spells: %d, inCombat: %s", count, tostring(InCombatLockdown())))
+        self.LastTickerLog = GetTime()
+    elseif DEBUG_TIMER and GetTime() - (self.LastTickerLog or 0) > 60 then
+        local count = 0
+        for id, v in pairs(trackedSpells) do
+            count = count + 1
+        end
+        logDebug(string.format("Ticker active (1min), tracked spells: %d, inCombat: %s, borders: %d created / %d failed",
+            count, tostring(InCombatLockdown()), borderCreationCount, borderFailCount))
+        self.LastTickerLog = GetTime()
+    end
+
+    local function updateFrameTimers(frame)
+        if not frame or not frame.unit then return end
+        local unit = frame.unit
+
+        -- Hide dispel overlay if configured (continuously enforce)
+        if configuration.Debuff.HideDispelOverlay then
+            if frame.DispelOverlay and frame.DispelOverlay:IsShown() then
+                frame.DispelOverlay:Hide()
+                frame.DispelOverlay:SetAlpha(0)
+            end
+
+            -- DispelDebuffIcon is a global frame (may not exist until dispellable debuff appears)
+            local frameName = frame:GetName()
+            if frameName then
+                local dispelIcon = _G[frameName .. "DispelDebuffIcon"]
+                if dispelIcon and dispelIcon:IsShown() then
+                    dispelIcon:Hide()
+                    dispelIcon:SetAlpha(0)
+                end
+
+                -- Also check DispelDebuff1 (alternative name)
+                local dispelDebuff1 = _G[frameName .. "DispelDebuff1"]
+                if dispelDebuff1 and dispelDebuff1:IsShown() then
+                    dispelDebuff1:Hide()
+                    dispelDebuff1:SetAlpha(0)
+                end
+            end
+        end
+
+        -- Update buff timers and borders
+        if frame.buffFrames then
+            for i, buff in ipairs(frame.buffFrames) do
+                if buff:IsShown() and buff.auraInstanceID then
+                    -- Update border for tracked spells
+                    if buff.OculusExpiringBorder then
+                        local success, remaining, duration, spellId = pcall(function()
+                            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, buff.auraInstanceID)
+                            if aura and aura.expirationTime and aura.duration and aura.expirationTime > 0 and aura.duration > 0 then
+                                return aura.expirationTime - GetTime(), aura.duration, aura.spellId
+                            end
+                            return nil, nil, nil
+                        end)
+
+                        if success and remaining and remaining > 0 and duration and trackedSpells[spellId] then
+                            local remainingPercent = remaining / duration
+
+                            -- Log tracked spell detection (throttled per aura)
+                            if DEBUG_TIMER and spellId == 33763 then
+                                local lastLog = buff.OculusLastLog or 0
+                                if GetTime() - lastLog > 2 then  -- Log every 2 seconds max per aura
+                                    logDebug(string.format("[Buff] Spell %d: %.1fs/%.1fs (%.0f%%), threshold=%.0f%%, border=%s",
+                                        spellId, remaining, duration, remainingPercent * 100,
+                                        expiringThreshold * 100, tostring(buff.OculusExpiringBorder ~= nil)))
+                                    buff.OculusLastLog = GetTime()
+                                end
+                            end
+
+                            if remainingPercent < expiringThreshold then
+                                -- Log border show attempt (once per expiring state)
+                                if DEBUG_TIMER and spellId == 33763 and not buff.OculusExpiringLogged then
+                                    logDebug(string.format("[Buff] >>> Expiring! Showing border for spell %d (%.1fs left)", spellId, remaining))
+                                    buff.OculusExpiringLogged = true
+                                end
+
+                                local showSuccess = pcall(function()
+                                    buff.OculusExpiringBorder:Show()
+                                    local pulse = 0.5 + 0.5 * math.sin(GetTime() * 10)
+                                    buff.OculusExpiringBorder:SetAlpha(0.4 + pulse * 0.6)
+                                end)
+
+                                if DEBUG_TIMER and spellId == 33763 and not showSuccess then
+                                    logDebug("[Buff] !!! FAILED to show border")
+                                end
+                            else
+                                buff.OculusExpiringBorder:Hide()
+                                buff.OculusExpiringLogged = nil  -- Reset for next expiration
+                            end
+                        else
+                            buff.OculusExpiringBorder:Hide()
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Update debuff timers and borders
+        if frame.debuffFrames then
+            for i, debuff in ipairs(frame.debuffFrames) do
+                if debuff:IsShown() then
+                    -- Update border for tracked spells
+                    if debuff.auraInstanceID and debuff.OculusExpiringBorder then
+                        local success, remaining, duration, spellId = pcall(function()
+                            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, debuff.auraInstanceID)
+                            if aura and aura.expirationTime and aura.duration and aura.expirationTime > 0 and aura.duration > 0 then
+                                return aura.expirationTime - GetTime(), aura.duration, aura.spellId
+                            end
+                            return nil, nil, nil
+                        end)
+
+                        if success and remaining and remaining > 0 and duration and trackedSpells[spellId] then
+                            local remainingPercent = remaining / duration
+                            if remainingPercent < expiringThreshold then
+                                pcall(function()
+                                    debuff.OculusExpiringBorder:Show()
+                                    local pulse = 0.5 + 0.5 * math.sin(GetTime() * 10)
+                                    debuff.OculusExpiringBorder:SetAlpha(0.4 + pulse * 0.6)
+                                end)
+                            else
+                                debuff.OculusExpiringBorder:Hide()
+                            end
+                        else
+                            debuff.OculusExpiringBorder:Hide()
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- Update CompactRaidFrameContainer
+    if CompactRaidFrameContainer then
+        CompactRaidFrameContainer:ApplyToFrames("normal", updateFrameTimers)
+    end
+
+    -- Update party frames
+    for i = 1, 5 do
+        local frame = _G["CompactPartyFrameMember" .. i]
+        if frame then
+            updateFrameTimers(frame)
+        end
+    end
+
+    -- Update party pet frames
+    for i = 1, 5 do
+        local petFrame = _G["CompactPartyFrameMemberPet" .. i]
+        if petFrame then
+            updateFrameTimers(petFrame)
+        end
+    end
+end
+
+-- Refresh all frames (full settings application)
 function Auras:RefreshAllFrames()
     -- Skip during edit mode to avoid interfering with Blizzard's layout system
     if EditModeManagerFrame and EditModeManagerFrame:IsEditModeActive() then
@@ -454,6 +953,29 @@ function Auras:Enable()
     isEnabled = true
     self.IsEnabled = true
 
+    -- Set initial combat state
+    inCombat = InCombatLockdown()
+
+    -- Log module enable
+    logDebug("=== Auras module enabled ===")
+    local configuration = buildConfig()
+    if configuration and configuration.Timer then
+        local trackedCount = 0
+        for id, v in pairs(configuration.Timer.TrackedSpells or {}) do
+            if v then
+                trackedCount = trackedCount + 1
+                if trackedCount <= 5 then
+                    logDebug(string.format("  Tracked spell: %d", id))
+                end
+            end
+        end
+        if trackedCount > 5 then
+            logDebug(string.format("  ... and %d more tracked spells", trackedCount - 5))
+        end
+        logDebug(string.format("  Expiring threshold: %.1f%%", (configuration.Timer.ExpiringThreshold or 0.25) * 100))
+        logDebug(string.format("  Initial combat state: %s", tostring(inCombat)))
+    end
+
     -- Hook CompactUnitFrame_UpdateAuras to run immediately after Blizzard's code
     if not self.Hooked then
         hooksecurefunc("CompactUnitFrame_UpdateAuras", function(frame)
@@ -463,41 +985,88 @@ function Auras:Enable()
             end
         end)
 
-        -- Also hook the buff/debuff setup functions to force size immediately
-        if CompactUnitFrame_UtilSetBuff then
-            hooksecurefunc("CompactUnitFrame_UtilSetBuff", function(buffFrame, ...)
-                if isEnabled and buffFrame then
-                    -- Skip during edit mode
-                    if EditModeManagerFrame and EditModeManagerFrame:IsEditModeActive() then
-                        return
-                    end
-                    local configuration = buildConfig()
-                    buffFrame:SetSize(configuration.Buff.Size, configuration.Buff.Size)
-                end
-            end)
-        end
-
-        if CompactUnitFrame_UtilSetDebuff then
-            hooksecurefunc("CompactUnitFrame_UtilSetDebuff", function(debuffFrame, ...)
-                if isEnabled and debuffFrame then
-                    -- Skip during edit mode
-                    if EditModeManagerFrame and EditModeManagerFrame:IsEditModeActive() then
-                        return
-                    end
-                    local configuration = buildConfig()
-                    debuffFrame:SetSize(configuration.Debuff.Size, configuration.Debuff.Size)
-                end
-            end)
-        end
-
         self.Hooked = true
     end
 
-    -- Start update ticker for timers (every 0.1 sec)
+    -- Combat state tracking
+    if not self.CombatEventFrame then
+        self.CombatEventFrame = CreateFrame("Frame")
+        self.CombatEventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+        self.CombatEventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        self.CombatEventFrame:SetScript("OnEvent", function(_, event)
+            if event == "PLAYER_REGEN_DISABLED" then
+                -- Entering combat
+                inCombat = true
+            elseif event == "PLAYER_REGEN_ENABLED" then
+                -- Leaving combat
+                inCombat = false
+                -- Create borders for all frames (combat ended, safe now)
+                if isEnabled then
+                    C_Timer.After(0.1, function()
+                        if isEnabled then
+                            -- Pre-create borders for all frames
+                            local function preCreateAllBorders()
+                                if CompactRaidFrameContainer then
+                                    CompactRaidFrameContainer:ApplyToFrames("normal", preCreateTimers)
+                                end
+                                for i = 1, 5 do
+                                    local frame = _G["CompactPartyFrameMember" .. i]
+                                    if frame then preCreateTimers(frame) end
+                                end
+                                for i = 1, 5 do
+                                    local petFrame = _G["CompactPartyFrameMemberPet" .. i]
+                                    if petFrame then preCreateTimers(petFrame) end
+                                end
+                            end
+                            preCreateAllBorders()
+                            Auras:RefreshAllFrames()
+                        end
+                    end)
+                end
+            end
+        end)
+    end
+
+    -- Start update ticker for timers only (every 0.1 sec)
     if not self.UpdateTicker then
+        logDebug("Creating update ticker (0.1s interval)")
         self.UpdateTicker = C_Timer.NewTicker(0.1, function()
             if isEnabled then
-                self:RefreshAllFrames()
+                self:UpdateTimers()
+            end
+        end)
+        logDebug("Update ticker created successfully")
+    end
+
+    -- Pre-create all timers on enable (combat-safe)
+    local function preCreateAllTimers()
+        -- Pre-create for CompactRaidFrameContainer
+        if CompactRaidFrameContainer then
+            CompactRaidFrameContainer:ApplyToFrames("normal", preCreateTimers)
+        end
+
+        -- Pre-create for party frames
+        for i = 1, 5 do
+            local frame = _G["CompactPartyFrameMember" .. i]
+            if frame then
+                preCreateTimers(frame)
+            end
+        end
+
+        -- Pre-create for party pet frames
+        for i = 1, 5 do
+            local petFrame = _G["CompactPartyFrameMemberPet" .. i]
+            if petFrame then
+                preCreateTimers(petFrame)
+            end
+        end
+    end
+
+    -- Pre-create timers immediately if not in combat
+    if not InCombatLockdown() then
+        C_Timer.After(0.5, function()
+            if isEnabled then
+                preCreateAllTimers()
             end
         end)
     end
@@ -514,6 +1083,8 @@ end
 
 -- Disable
 function Auras:Disable()
+    logDebug("=== Auras module disabled ===")
+
     isEnabled = false
     self.IsEnabled = false
 
@@ -521,12 +1092,28 @@ function Auras:Disable()
     if self.UpdateTicker then
         self.UpdateTicker:Cancel()
         self.UpdateTicker = nil
+        logDebug("Update ticker stopped")
+    end
+
+    -- Unregister combat event frame
+    if self.CombatEventFrame then
+        self.CombatEventFrame:UnregisterAllEvents()
     end
 end
 
 -- Get current settings (for UI)
 function Auras:GetSettings()
     return buildConfig()
+end
+
+-- Print debug log
+function Auras:PrintDebugLog()
+    printDebugLog()
+end
+
+-- Clear debug log
+function Auras:ClearDebugLog()
+    clearDebugLog()
 end
 
 -- Update setting (saves to raw Storage)
