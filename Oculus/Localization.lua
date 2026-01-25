@@ -117,6 +117,8 @@ LOCALES["enUS"] = {
     ["Debuffs Per Row"] = "Debuffs Per Row",
     ["Buff Anchor"] = "Buff Position",
     ["Debuff Anchor"] = "Debuff Position",
+    ["Buff Spacing"] = "Buff Spacing",
+    ["Debuff Spacing"] = "Debuff Spacing",
     ["Use Custom Position"] = "Use Custom Position",
     ["Tooltip Custom Position"] = "Enable custom positioning to manually control icon placement. When disabled, Blizzard's default layout is used.",
 
@@ -225,6 +227,8 @@ LOCALES["koKR"] = {
     ["Debuffs Per Row"] = "행당 디버프 개수",
     ["Buff Anchor"] = "버프 위치",
     ["Debuff Anchor"] = "디버프 위치",
+    ["Buff Spacing"] = "버프 간격",
+    ["Debuff Spacing"] = "디버프 간격",
     ["Use Custom Position"] = "커스텀 위치 사용",
     ["Tooltip Custom Position"] = "커스텀 위치 설정을 활성화하면 아이콘 위치를 수동으로 제어할 수 있습니다. 비활성화 시 블리자드 기본 레이아웃이 사용됩니다.",
 

@@ -28,19 +28,24 @@ local Oculus = _G["Oculus"]
 local L = Oculus and Oculus.L or {}
 
 
--- Constants
+-- Constants (must match RaidFrames.lua DEFAULTS structure)
 local DEFAULTS = {
+    Frame = {
+        Scale = 1.0,
+    },
     Buff = {
         Size = 20,
         PerRow = 3,
         Anchor = "BOTTOMLEFT",
         UseCustomPosition = false,
+        Spacing = 0,
     },
     Debuff = {
         Size = 24,
         PerRow = 3,
         Anchor = "CENTER",
         UseCustomPosition = false,
+        Spacing = 0,
     },
     Timer = {
         Show = true,
@@ -49,65 +54,105 @@ local DEFAULTS = {
 }
 
 
--- Configuration object (populated from DB with defaults)
+-- Configuration object (populated from Storage with defaults)
 local config = {
+    Frame = {},
     Buff = {},
     Debuff = {},
     Timer = {},
 }
 
 
--- Helper: Get raw DB reference
-local function getRawDB()
+-- Helper: Get raw Storage reference (Auras only)
+local function getRawStorage()
     local rf = addon.RaidFrames
     if not rf then return nil end
 
-    if rf.GetDB then
-        local rfDb = rf:GetDB()
-        return rfDb and rfDb.Auras
+    if rf.GetStorage then
+        local storage = rf:GetStorage()
+        return storage and storage.Auras
     end
 
-    return rf.DB and rf.DB.Auras
+    -- Backward compatibility
+    if rf.GetDB then
+        local storage = rf:GetDB()
+        return storage and storage.Auras
+    end
+
+    return rf.Storage and rf.Storage.Auras
 end
 
--- Helper: Build configuration from DB with defaults
+-- Helper: Get full Storage reference (includes Frame, Auras, etc)
+local function getFullStorage()
+    local rf = addon.RaidFrames
+    if not rf then return nil end
+
+    if rf.GetStorage then
+        return rf:GetStorage()
+    end
+
+    -- Backward compatibility
+    if rf.GetDB then
+        return rf:GetDB()
+    end
+
+    return rf.Storage
+end
+
+-- Helper: Build configuration from Storage with defaults
 local function buildConfig()
-    local db = getRawDB() or {}
+    local fullStorage = getFullStorage() or {}
+    local storage = getRawStorage() or {}
+
+    config.Frame = {
+        Scale = (fullStorage.Frame and fullStorage.Frame.Scale) or DEFAULTS.Frame.Scale,
+    }
 
     config.Buff = {
-        Size = db.BuffSize or DEFAULTS.Buff.Size,
-        PerRow = db.BuffsPerRow or DEFAULTS.Buff.PerRow,
-        Anchor = db.BuffAnchor or DEFAULTS.Buff.Anchor,
-        UseCustomPosition = db.UseCustomBuffPosition or DEFAULTS.Buff.UseCustomPosition,
+        Size = (storage.Buff and storage.Buff.Size) or DEFAULTS.Buff.Size,
+        PerRow = (storage.Buff and storage.Buff.PerRow) or DEFAULTS.Buff.PerRow,
+        Anchor = (storage.Buff and storage.Buff.Anchor) or DEFAULTS.Buff.Anchor,
+        UseCustomPosition = (storage.Buff and storage.Buff.UseCustomPosition) or DEFAULTS.Buff.UseCustomPosition,
+        Spacing = (storage.Buff and storage.Buff.Spacing ~= nil) and storage.Buff.Spacing or DEFAULTS.Buff.Spacing,
     }
 
     config.Debuff = {
-        Size = db.DebuffSize or DEFAULTS.Debuff.Size,
-        PerRow = db.DebuffsPerRow or DEFAULTS.Debuff.PerRow,
-        Anchor = db.DebuffAnchor or DEFAULTS.Debuff.Anchor,
-        UseCustomPosition = db.UseCustomDebuffPosition or DEFAULTS.Debuff.UseCustomPosition,
+        Size = (storage.Debuff and storage.Debuff.Size) or DEFAULTS.Debuff.Size,
+        PerRow = (storage.Debuff and storage.Debuff.PerRow) or DEFAULTS.Debuff.PerRow,
+        Anchor = (storage.Debuff and storage.Debuff.Anchor) or DEFAULTS.Debuff.Anchor,
+        UseCustomPosition = (storage.Debuff and storage.Debuff.UseCustomPosition) or DEFAULTS.Debuff.UseCustomPosition,
+        Spacing = (storage.Debuff and storage.Debuff.Spacing ~= nil) and storage.Debuff.Spacing or DEFAULTS.Debuff.Spacing,
     }
 
     config.Timer = {
-        Show = (db.ShowTimer == nil) and DEFAULTS.Timer.Show or db.ShowTimer,
-        ExpiringThreshold = db.ExpiringThreshold or DEFAULTS.Timer.ExpiringThreshold,
+        Show = (storage.Timer and storage.Timer.Show ~= nil) and storage.Timer.Show or DEFAULTS.Timer.Show,
+        ExpiringThreshold = (storage.Timer and storage.Timer.ExpiringThreshold) or DEFAULTS.Timer.ExpiringThreshold,
     }
 
     return config
 end
 
--- Helper: Get DB for saving (creates if needed)
-local function getDB()
-    local db = getRawDB()
-    if db then return db end
+-- Helper: Get Storage for saving (creates if needed)
+local function getStorage()
+    local storage = getRawStorage()
+    if storage then return storage end
 
-    -- Create DB structure if missing
+    -- Create Storage structure if missing
     local rf = addon.RaidFrames
+    if rf and rf.GetStorage then
+        local rfStorage = rf:GetStorage()
+        if rfStorage then
+            rfStorage.Auras = rfStorage.Auras or {}
+            return rfStorage.Auras
+        end
+    end
+
+    -- Backward compatibility
     if rf and rf.GetDB then
-        local rfDb = rf:GetDB()
-        if rfDb then
-            rfDb.Auras = rfDb.Auras or {}
-            return rfDb.Auras
+        local rfStorage = rf:GetDB()
+        if rfStorage then
+            rfStorage.Auras = rfStorage.Auras or {}
+            return rfStorage.Auras
         end
     end
 
@@ -134,6 +179,26 @@ local COLORS = {
 local controls = {}
 local isInitializing = true
 local cumulativeY = 0
+
+-- Enable/Disable all setting controls
+local function setControlsEnabled(enabled)
+    local alpha = enabled and 1.0 or 0.5
+
+    for _, control in pairs(controls) do
+        if control.Row then
+            control.Row:SetAlpha(alpha)
+        end
+        if control.SetEnabled then
+            control:SetEnabled(enabled)
+        elseif control.Enable and control.Disable then
+            if enabled then
+                control:Enable()
+            else
+                control:Disable()
+            end
+        end
+    end
+end
 
 -- Create section header (always at X=0)
 local function createSectionHeader(parent, titleKey)
@@ -274,59 +339,87 @@ local function createCheckboxRow(parent, name, labelKey, useIndent)
     return cb
 end
 
--- Refresh all control values from DB
+-- Refresh all control values from Storage
 local function refreshControls()
     -- Set flag to prevent OnValueChanged from saving during refresh
     isInitializing = true
 
-    -- Build configuration from DB
-    local cfg = buildConfig()
+    -- Check if module is enabled
+    local isEnabled = false
+    if Oculus and Oculus.Storage and Oculus.Storage.EnabledModules then
+        isEnabled = Oculus.Storage.EnabledModules["RaidFrames"]
+        if isEnabled == nil then
+            isEnabled = true
+        end
+    elseif Oculus and Oculus.DB and Oculus.DB.EnabledModules then
+        -- Backward compatibility
+        isEnabled = Oculus.DB.EnabledModules["RaidFrames"]
+        if isEnabled == nil then
+            isEnabled = true
+        end
+    end
+
+    -- Enable/disable controls based on module state
+    setControlsEnabled(isEnabled)
+
+    -- Build configuration from Storage
+    local configuration = buildConfig()
 
     -- Buff Settings
     if controls.BuffSizeSlider then
-        controls.BuffSizeSlider:SetValue(cfg.Buff.Size)
-        controls.BuffSizeSlider.ValueText:SetText(cfg.Buff.Size)
+        controls.BuffSizeSlider:SetValue(configuration.Buff.Size)
+        controls.BuffSizeSlider.ValueText:SetText(configuration.Buff.Size)
     end
 
     if controls.UseCustomBuffCB then
-        controls.UseCustomBuffCB:SetChecked(cfg.Buff.UseCustomPosition)
+        controls.UseCustomBuffCB:SetChecked(configuration.Buff.UseCustomPosition)
     end
 
     if controls.BuffsPerRowSlider then
-        controls.BuffsPerRowSlider:SetValue(cfg.Buff.PerRow)
-        controls.BuffsPerRowSlider.ValueText:SetText(cfg.Buff.PerRow)
+        controls.BuffsPerRowSlider:SetValue(configuration.Buff.PerRow)
+        controls.BuffsPerRowSlider.ValueText:SetText(configuration.Buff.PerRow)
     end
 
     if controls.BuffAnchorDropdown then
-        UIDropDownMenu_SetText(controls.BuffAnchorDropdown, L[cfg.Buff.Anchor])
+        UIDropDownMenu_SetText(controls.BuffAnchorDropdown, L[configuration.Buff.Anchor])
+    end
+
+    if controls.BuffSpacingSlider then
+        controls.BuffSpacingSlider:SetValue(configuration.Buff.Spacing)
+        controls.BuffSpacingSlider.ValueText:SetText(configuration.Buff.Spacing)
     end
 
     -- Debuff Settings
     if controls.DebuffSizeSlider then
-        controls.DebuffSizeSlider:SetValue(cfg.Debuff.Size)
-        controls.DebuffSizeSlider.ValueText:SetText(cfg.Debuff.Size)
+        controls.DebuffSizeSlider:SetValue(configuration.Debuff.Size)
+        controls.DebuffSizeSlider.ValueText:SetText(configuration.Debuff.Size)
     end
 
     if controls.UseCustomDebuffCB then
-        controls.UseCustomDebuffCB:SetChecked(cfg.Debuff.UseCustomPosition)
+        controls.UseCustomDebuffCB:SetChecked(configuration.Debuff.UseCustomPosition)
     end
 
     if controls.DebuffsPerRowSlider then
-        controls.DebuffsPerRowSlider:SetValue(cfg.Debuff.PerRow)
-        controls.DebuffsPerRowSlider.ValueText:SetText(cfg.Debuff.PerRow)
+        controls.DebuffsPerRowSlider:SetValue(configuration.Debuff.PerRow)
+        controls.DebuffsPerRowSlider.ValueText:SetText(configuration.Debuff.PerRow)
     end
 
     if controls.DebuffAnchorDropdown then
-        UIDropDownMenu_SetText(controls.DebuffAnchorDropdown, L[cfg.Debuff.Anchor])
+        UIDropDownMenu_SetText(controls.DebuffAnchorDropdown, L[configuration.Debuff.Anchor])
+    end
+
+    if controls.DebuffSpacingSlider then
+        controls.DebuffSpacingSlider:SetValue(configuration.Debuff.Spacing)
+        controls.DebuffSpacingSlider.ValueText:SetText(configuration.Debuff.Spacing)
     end
 
     -- Timer Settings
     if controls.ShowTimerCB then
-        controls.ShowTimerCB:SetChecked(cfg.Timer.Show)
+        controls.ShowTimerCB:SetChecked(configuration.Timer.Show)
     end
 
     if controls.ExpiringSlider then
-        local thresholdPercent = cfg.Timer.ExpiringThreshold * 100
+        local thresholdPercent = configuration.Timer.ExpiringThreshold * 100
         controls.ExpiringSlider:SetValue(thresholdPercent)
         controls.ExpiringSlider.ValueText:SetText(thresholdPercent .. "%")
     end
@@ -402,9 +495,10 @@ local function populateSettingsPanel()
         value = math.floor(value)
         self.ValueText:SetText(value)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.BuffSize = value
+        local storage = getStorage()
+        if storage then
+            storage.Buff = storage.Buff or {}
+            storage.Buff.Size = value
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -414,9 +508,10 @@ local function populateSettingsPanel()
     controls.UseCustomBuffCB = useCustomBuffCB
     useCustomBuffCB:SetScript("OnClick", function(self)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.UseCustomBuffPosition = self:GetChecked()
+        local storage = getStorage()
+        if storage then
+            storage.Buff = storage.Buff or {}
+            storage.Buff.UseCustomPosition = self:GetChecked()
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -428,9 +523,10 @@ local function populateSettingsPanel()
         value = math.floor(value)
         self.ValueText:SetText(value)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.BuffsPerRow = value
+        local storage = getStorage()
+        if storage then
+            storage.Buff = storage.Buff or {}
+            storage.Buff.PerRow = value
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -446,13 +542,29 @@ local function populateSettingsPanel()
             info.func = function()
                 if isInitializing then return end
                 UIDropDownMenu_SetText(buffAnchorDropdown, L[anchor])
-                local db = getDB()
-                if db then
-                    db.BuffAnchor = anchor
+                local storage = getStorage()
+                if storage then
+                    storage.Buff = storage.Buff or {}
+                    storage.Buff.Anchor = anchor
                     if addon.Auras then addon.Auras:RefreshAllFrames() end
                 end
             end
             UIDropDownMenu_AddButton(info, level)
+        end
+    end)
+
+    -- Buff Spacing
+    local buffSpacingSlider = createSliderRow(contentParent, "BuffSpacing", "Buff Spacing", 0, 10, 1, true)
+    controls.BuffSpacingSlider = buffSpacingSlider
+    buffSpacingSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value)
+        if isInitializing then return end
+        local storage = getStorage()
+        if storage then
+            storage.Buff = storage.Buff or {}
+            storage.Buff.Spacing = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
@@ -468,9 +580,10 @@ local function populateSettingsPanel()
         value = math.floor(value)
         self.ValueText:SetText(value)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.DebuffSize = value
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.Size = value
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -480,9 +593,10 @@ local function populateSettingsPanel()
     controls.UseCustomDebuffCB = useCustomDebuffCB
     useCustomDebuffCB:SetScript("OnClick", function(self)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.UseCustomDebuffPosition = self:GetChecked()
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.UseCustomPosition = self:GetChecked()
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -494,9 +608,10 @@ local function populateSettingsPanel()
         value = math.floor(value)
         self.ValueText:SetText(value)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.DebuffsPerRow = value
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.PerRow = value
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -512,13 +627,29 @@ local function populateSettingsPanel()
             info.func = function()
                 if isInitializing then return end
                 UIDropDownMenu_SetText(debuffAnchorDropdown, L[anchor])
-                local db = getDB()
-                if db then
-                    db.DebuffAnchor = anchor
+                local storage = getStorage()
+                if storage then
+                    storage.Debuff = storage.Debuff or {}
+                    storage.Debuff.Anchor = anchor
                     if addon.Auras then addon.Auras:RefreshAllFrames() end
                 end
             end
             UIDropDownMenu_AddButton(info, level)
+        end
+    end)
+
+    -- Debuff Spacing
+    local debuffSpacingSlider = createSliderRow(contentParent, "DebuffSpacing", "Debuff Spacing", 0, 10, 1, true)
+    controls.DebuffSpacingSlider = debuffSpacingSlider
+    debuffSpacingSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value)
+        self.ValueText:SetText(value)
+        if isInitializing then return end
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.Spacing = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
 
@@ -532,9 +663,10 @@ local function populateSettingsPanel()
     controls.ShowTimerCB = showTimerCB
     showTimerCB:SetScript("OnClick", function(self)
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.ShowTimer = self:GetChecked()
+        local storage = getStorage()
+        if storage then
+            storage.Timer = storage.Timer or {}
+            storage.Timer.Show = self:GetChecked()
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -546,9 +678,10 @@ local function populateSettingsPanel()
         value = math.floor(value)
         self.ValueText:SetText(value .. "%")
         if isInitializing then return end
-        local db = getDB()
-        if db then
-            db.ExpiringThreshold = value / 100
+        local storage = getStorage()
+        if storage then
+            storage.Timer = storage.Timer or {}
+            storage.Timer.ExpiringThreshold = value / 100
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
@@ -560,11 +693,20 @@ local function populateSettingsPanel()
     scrollChild:SetHeight(totalHeight)
 
     -- ============================================
+    -- Hook EnableCheckbox to update controls
+    -- ============================================
+    if panel.EnableCheckbox then
+        panel.EnableCheckbox:HookScript("OnClick", function()
+            C_Timer.After(0.05, refreshControls)
+        end)
+    end
+
+    -- ============================================
     -- OnShow - Load values
     -- ============================================
     panel:HookScript("OnShow", refreshControls)
 
-    -- Initial refresh after short delay (DB may not be ready)
+    -- Initial refresh after short delay (Storage may not be ready)
     C_Timer.After(0.1, refreshControls)
 
     panel.SettingsPopulated = true
@@ -578,12 +720,12 @@ StaticPopupDialogs["OCULUS_RF_RESET_CONFIRM"] = {
     OnAccept = function()
         local rf = addon.RaidFrames
         if rf then
-            local db = rf:GetDB()
-            if db and rf.Defaults and rf.Defaults.Auras then
+            local storage = rf:GetStorage()
+            if storage and rf.Defaults and rf.Defaults.Auras then
                 -- Deep copy defaults
-                db.Auras = {}
+                storage.Auras = {}
                 for key, value in pairs(rf.Defaults.Auras) do
-                    db.Auras[key] = value
+                    storage.Auras[key] = value
                 end
                 if addon.Auras then addon.Auras:RefreshAllFrames() end
                 print("|cFF00FF00[Oculus]|r " .. L["Settings Reset"])

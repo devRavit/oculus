@@ -30,14 +30,24 @@ local DEFAULTS = {
     Enabled = true,
     Auras = {
         Enabled = true,
-        BuffSize = 20,
-        DebuffSize = 24,
-        BuffsPerRow = 3,
-        DebuffsPerRow = 3,
-        BuffAnchor = "BOTTOMLEFT",
-        DebuffAnchor = "CENTER",
-        ShowTimer = true,
-        ExpiringThreshold = 0.25, -- 25% remaining triggers border glow
+        Buff = {
+            Size = 20,
+            PerRow = 3,
+            Anchor = "BOTTOMLEFT",
+            UseCustomPosition = false,
+            Spacing = 0,
+        },
+        Debuff = {
+            Size = 24,
+            PerRow = 3,
+            Anchor = "CENTER",
+            UseCustomPosition = false,
+            Spacing = 0,
+        },
+        Timer = {
+            Show = true,
+            ExpiringThreshold = 0.25, -- 25% remaining triggers border glow
+        },
     },
     Cooldowns = {
         Enabled = false,
@@ -78,29 +88,30 @@ local function mergeDefaults(target, source)
     end
 end
 
--- Initialize Database
-local function initializeDB()
+-- Initialize Storage
+local function initializeStorage()
     if not Oculus_RaidFramesDB then
         Oculus_RaidFramesDB = {}
     end
 
     mergeDefaults(Oculus_RaidFramesDB, DEFAULTS)
-    RaidFrames.DB = Oculus_RaidFramesDB
+    RaidFrames.Storage = Oculus_RaidFramesDB
 end
 
--- Get DB (for external access, ensures DB exists)
-function RaidFrames:GetDB()
-    -- Only initialize if DB is nil AND we're after ADDON_LOADED
-    if not self.DB then
+-- Get Storage (for external access, ensures Storage exists)
+function RaidFrames:GetStorage()
+    -- Only initialize if Storage is nil AND we're after ADDON_LOADED
+    if not self.Storage then
         -- Fallback initialization
         if not Oculus_RaidFramesDB then
             Oculus_RaidFramesDB = {}
         end
         mergeDefaults(Oculus_RaidFramesDB, DEFAULTS)
-        self.DB = Oculus_RaidFramesDB
+        self.Storage = Oculus_RaidFramesDB
     end
-    return self.DB
+    return self.Storage
 end
+
 
 -- Hook all existing and new CompactUnitFrames
 local function hookAllFrames()
@@ -110,13 +121,13 @@ end
 
 -- Enable Module
 function RaidFrames:Enable()
-    -- Sync DB.Enabled with Core's EnabledModules
-    self.DB.Enabled = true
+    -- Sync Storage.Enabled with Core's EnabledModules
+    self.Storage.Enabled = true
 
     hookAllFrames()
 
     -- Enable submodules
-    if addon.Auras and self.DB.Auras.Enabled then
+    if addon.Auras and self.Storage.Auras.Enabled then
         addon.Auras:Enable()
     end
 
@@ -125,8 +136,8 @@ end
 
 -- Disable Module
 function RaidFrames:Disable()
-    -- Sync DB.Enabled with Core's EnabledModules
-    self.DB.Enabled = false
+    -- Sync Storage.Enabled with Core's EnabledModules
+    self.Storage.Enabled = false
 
     if addon.Auras then
         addon.Auras:Disable()
@@ -139,21 +150,37 @@ end
 
 -- Initialize
 function RaidFrames:Initialize()
-    initializeDB()
+    initializeStorage()
 end
 
--- Debug: Print current DB state
-function RaidFrames:DebugDB()
-    local db = self:GetDB()
-    print("|cFF00FF00[Oculus RaidFrames]|r DB Debug:")
-    print("  DB exists: " .. tostring(db ~= nil))
-    if db then
-        print("  Enabled: " .. tostring(db.Enabled))
-        if db.Auras then
-            print("  Auras.Enabled: " .. tostring(db.Auras.Enabled))
-            print("  Auras.BuffSize: " .. tostring(db.Auras.BuffSize))
-            print("  Auras.DebuffSize: " .. tostring(db.Auras.DebuffSize))
-            print("  Auras.ShowTimer: " .. tostring(db.Auras.ShowTimer))
+-- Debug: Print current Storage state
+function RaidFrames:DebugStorage()
+    local storage = self:GetStorage()
+    print("|cFF00FF00[Oculus RaidFrames]|r Storage Debug:")
+    print("  Storage exists: " .. tostring(storage ~= nil))
+    if storage then
+        print("  Enabled: " .. tostring(storage.Enabled))
+        if storage.Frame then
+            print("  Frame.Scale: " .. tostring(storage.Frame.Scale))
+        end
+        if storage.Auras then
+            print("  Auras.Enabled: " .. tostring(storage.Auras.Enabled))
+            if storage.Auras.Buff then
+                print("  Auras.Buff.Size: " .. tostring(storage.Auras.Buff.Size))
+                print("  Auras.Buff.PerRow: " .. tostring(storage.Auras.Buff.PerRow))
+                print("  Auras.Buff.Anchor: " .. tostring(storage.Auras.Buff.Anchor))
+                print("  Auras.Buff.UseCustomPosition: " .. tostring(storage.Auras.Buff.UseCustomPosition))
+            end
+            if storage.Auras.Debuff then
+                print("  Auras.Debuff.Size: " .. tostring(storage.Auras.Debuff.Size))
+                print("  Auras.Debuff.PerRow: " .. tostring(storage.Auras.Debuff.PerRow))
+                print("  Auras.Debuff.Anchor: " .. tostring(storage.Auras.Debuff.Anchor))
+                print("  Auras.Debuff.UseCustomPosition: " .. tostring(storage.Auras.Debuff.UseCustomPosition))
+            end
+            if storage.Auras.Timer then
+                print("  Auras.Timer.Show: " .. tostring(storage.Auras.Timer.Show))
+                print("  Auras.Timer.ExpiringThreshold: " .. tostring(storage.Auras.Timer.ExpiringThreshold))
+            end
         else
             print("  Auras: nil")
         end
@@ -168,12 +195,13 @@ function RaidFrames:DebugDB()
 end
 
 
+
 -- Slash command for debug
 SLASH_OCULUSRF1 = "/ocrf"
 SlashCmdList["OCULUSRF"] = function(msg)
     local command = msg:lower():trim()
     if command == "debug" then
-        RaidFrames:DebugDB()
+        RaidFrames:DebugStorage()
     elseif command == "enable" then
         RaidFrames:Enable()
         RaidFrames.IsEnabled = true
@@ -184,7 +212,7 @@ SlashCmdList["OCULUSRF"] = function(msg)
         end
     else
         print("|cFF00FF00[Oculus RaidFrames]|r Commands:")
-        print("  /ocrf debug - Show DB state")
+        print("  /ocrf debug - Show Storage state")
         print("  /ocrf enable - Force enable module")
         print("  /ocrf refresh - Refresh all frames")
     end
@@ -206,8 +234,8 @@ local eventHandlers = {
     end,
 
     PLAYER_ENTERING_WORLD = function()
-        -- Ensure DB is initialized
-        RaidFrames:GetDB()
+        -- Ensure Storage is initialized
+        RaidFrames:GetStorage()
 
         -- Enable if Core says so (or if Core isn't available, enable anyway)
         local shouldEnable = true
