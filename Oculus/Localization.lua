@@ -93,7 +93,7 @@ LOCALES["enUS"] = {
     ["Frame Settings"] = "Frame Settings",
     ["Hide Role Icon"] = "Hide Role Icon",
     ["Hide Name"] = "Hide Name",
-    ["Hide Aggro Border"] = "Hide Aggro Border",
+    ["Hide Aggro Overlay"] = "Hide Aggro Overlay",
     ["Hide Party Title"] = "Hide Party Title",
     ["Buff Settings"] = "Buff Settings",
     ["Debuff Settings"] = "Debuff Settings",
@@ -128,7 +128,12 @@ LOCALES["enUS"] = {
     ["Remove"] = "Remove",
     ["No Tracked Spells"] = "No spells tracked. Add a spell ID above.",
 
+    -- RaidFrames Tab/Category Names
+    ["Buff Icon Settings"] = "Buff Icon Settings",
+
     -- RaidFrames Layout Settings
+    ["Max Buffs"] = "Max Buffs",
+    ["Max Debuffs"] = "Max Debuffs",
     ["Buffs Per Row"] = "Buffs Per Row",
     ["Debuffs Per Row"] = "Debuffs Per Row",
     ["Buff Anchor"] = "Buff Position",
@@ -219,7 +224,7 @@ LOCALES["koKR"] = {
     ["Frame Settings"] = "프레임 설정",
     ["Hide Role Icon"] = "역할군 아이콘 숨김",
     ["Hide Name"] = "이름 숨김",
-    ["Hide Aggro Border"] = "어그로 테두리 숨김",
+    ["Hide Aggro Overlay"] = "어그로 오버레이 숨김",
     ["Hide Party Title"] = "파티 제목 숨김",
     ["Buff Settings"] = "버프 설정",
     ["Debuff Settings"] = "디버프 설정",
@@ -254,7 +259,12 @@ LOCALES["koKR"] = {
     ["Remove"] = "제거",
     ["No Tracked Spells"] = "추적 중인 주문이 없습니다. 위에서 주문 ID를 추가하세요.",
 
+    -- RaidFrames Tab/Category Names
+    ["Buff Icon Settings"] = "버프 아이콘 설정",
+
     -- RaidFrames Layout Settings
+    ["Max Buffs"] = "버프 총 개수",
+    ["Max Debuffs"] = "디버프 총 개수",
     ["Buffs Per Row"] = "행당 버프 개수",
     ["Debuffs Per Row"] = "행당 디버프 개수",
     ["Buff Anchor"] = "버프 위치",

@@ -5,6 +5,23 @@ All notable changes to Oculus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-01-25
+
+### Added
+- **RaidFrames**: Two-level navigation UI (tabs + sidebar categories) for better organization
+- **RaidFrames**: Max Buffs/Debuffs settings - control total number of auras displayed (1-15 range)
+- **RaidFrames**: Modern slider UI with visual progress bar and editable value input
+- **RaidFrames**: Modern checkbox UI with left-aligned labels and clickable rows
+- **RaidFrames**: Split Config.lua into modular tab files (ConfigFrameTab, ConfigBuffTab, ConfigDebuffTab)
+
+### Changed
+- **RaidFrames**: Renamed "어그로 테두리 숨김" → "어그로 오버레이 숨김" for clarity
+- **RaidFrames**: Separated "버프 총 개수" (Max Buffs) from "행당 버프 개수" (Buffs Per Row) - distinct functionality
+- **RaidFrames**: Timer Settings moved to separate category in Buff tab
+
+### Removed
+- **RaidFrames**: Removed "커스텀 위치 사용" option (unnecessary)
+
 ## [0.1.1] - 2026-01-25
 
 ### Fixed

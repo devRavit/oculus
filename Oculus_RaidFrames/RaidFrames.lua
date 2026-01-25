@@ -38,6 +38,7 @@ local DEFAULTS = {
         Enabled = true,
         Buff = {
             Size = 20,
+            MaxCount = 9,
             PerRow = 3,
             Anchor = "BOTTOMRIGHT",
             UseCustomPosition = false,
@@ -45,6 +46,7 @@ local DEFAULTS = {
         },
         Debuff = {
             Size = 24,
+            MaxCount = 6,
             PerRow = 3,
             Anchor = "BOTTOMLEFT",
             UseCustomPosition = false,

@@ -53,6 +53,7 @@ end
 local DEFAULTS = {
     Buff = {
         Size = 20,
+        MaxCount = 9,
         PerRow = 3,
         Anchor = "BOTTOMRIGHT",
         UseCustomPosition = false,
@@ -60,6 +61,7 @@ local DEFAULTS = {
     },
     Debuff = {
         Size = 24,
+        MaxCount = 6,
         PerRow = 3,
         Anchor = "BOTTOMLEFT",
         UseCustomPosition = false,
@@ -635,6 +637,7 @@ function Auras:ApplySettings(frame)
         local buffAnchor = configuration.Buff.Anchor
         local useCustomPosition = configuration.Buff.UseCustomPosition
         local buffSpacing = configuration.Buff.Spacing
+        local maxBuffs = configuration.Buff.MaxCount or 9
 
         -- Count visible buffs for proper layout
         local visibleCount = 0
@@ -646,12 +649,19 @@ function Auras:ApplySettings(frame)
 
         local visibleIndex = 0
         for i, buff in ipairs(frame.buffFrames) do
+            local shouldShow = buff:IsShown() and visibleIndex < maxBuffs
+
             -- Set size only when not in combat (protected)
             if not inCombat then
                 buff:SetSize(buffSize, buffSize)
 
+                -- Hide buffs exceeding MaxCount
+                if buff:IsShown() and visibleIndex >= maxBuffs then
+                    buff:Hide()
+                end
+
                 -- Always reposition shown buffs to prevent overlap when size changes
-                if buff:IsShown() then
+                if shouldShow then
                     local col = visibleIndex % buffsPerRow
                     local row = math.floor(visibleIndex / buffsPerRow)
                     local xOffset, yOffset = self:CalculateAnchorOffset(
@@ -664,12 +674,12 @@ function Auras:ApplySettings(frame)
                 end
             else
                 -- During combat, just count visible for timer updates
-                if buff:IsShown() then
+                if shouldShow then
                     visibleIndex = visibleIndex + 1
                 end
             end
 
-            if buff:IsShown() then
+            if shouldShow then
                 registerWithMasque(buff)
                 -- Setup OnUpdate script for self-managed timer
                 if buff.auraInstanceID then
@@ -694,6 +704,7 @@ function Auras:ApplySettings(frame)
         local debuffAnchor = configuration.Debuff.Anchor
         local useCustomPosition = configuration.Debuff.UseCustomPosition
         local debuffSpacing = configuration.Debuff.Spacing
+        local maxDebuffs = configuration.Debuff.MaxCount or 6
 
         -- Count visible debuffs for proper layout
         local visibleCount = 0
@@ -705,12 +716,19 @@ function Auras:ApplySettings(frame)
 
         local visibleIndex = 0
         for i, debuff in ipairs(frame.debuffFrames) do
+            local shouldShow = debuff:IsShown() and visibleIndex < maxDebuffs
+
             -- Set size only when not in combat (protected)
             if not inCombat then
                 debuff:SetSize(debuffSize, debuffSize)
 
+                -- Hide debuffs exceeding MaxCount
+                if debuff:IsShown() and visibleIndex >= maxDebuffs then
+                    debuff:Hide()
+                end
+
                 -- Always reposition shown debuffs to prevent overlap when size changes
-                if debuff:IsShown() then
+                if shouldShow then
                     local col = visibleIndex % debuffsPerRow
                     local row = math.floor(visibleIndex / debuffsPerRow)
                     local xOffset, yOffset = self:CalculateAnchorOffset(
@@ -723,12 +741,12 @@ function Auras:ApplySettings(frame)
                 end
             else
                 -- During combat, just count visible for timer updates
-                if debuff:IsShown() then
+                if shouldShow then
                     visibleIndex = visibleIndex + 1
                 end
             end
 
-            if debuff:IsShown() then
+            if shouldShow then
                 registerWithMasque(debuff)
 
                 -- Setup OnUpdate script for self-managed timer

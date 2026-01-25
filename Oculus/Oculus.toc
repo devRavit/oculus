@@ -2,7 +2,7 @@
 ## Title: Oculus
 ## Notes: PvP Addon Suite - Core Module
 ## Author: RAVIT
-## Version: 0.1.1
+## Version: 0.2.0
 ## SavedVariables: OculusStorage
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
