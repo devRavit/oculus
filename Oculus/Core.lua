@@ -10,7 +10,6 @@ local addonName, Oculus = ...
 local CreateFrame = CreateFrame
 local pairs = pairs
 local type = type
-local print = print
 local C_AddOns = C_AddOns
 
 
@@ -47,6 +46,7 @@ local function deepMerge(target, source)
     end
 end
 
+
 -- Initialize Database
 local function initializeDB()
     if not OculusStorage then
@@ -55,26 +55,39 @@ local function initializeDB()
 
     deepMerge(OculusStorage, DEFAULTS)
     Oculus.Storage = OculusStorage
+
+    if _G.Oculus and _G.Oculus.Logger then
+        _G.Oculus.Logger:Log("Core", nil, "Storage initialized (v" .. Oculus.Version .. ")")
+    end
 end
 
 
 -- Register Module
 function Oculus:RegisterModule(name, module)
     if self.Modules[name] then
-        print("|cFFFF0000[Oculus]|r " .. L["Module Already Registered"] .. ": " .. name)
+        if _G.Oculus and _G.Oculus.Logger then
+            _G.Oculus.Logger:Log("Core", nil, "Module already registered: " .. name)
+        end
         return false
     end
 
     self.Modules[name] = module
-    print("|cFF00FF00[Oculus]|r " .. L["Module Registered"] .. ": " .. name)
+
+    if _G.Oculus and _G.Oculus.Logger then
+        _G.Oculus.Logger:Log("Core", nil, "Module registered: " .. name)
+    end
+
     return true
 end
+
 
 -- Enable Module
 function Oculus:EnableModule(name)
     local module = self.Modules[name]
     if not module then
-        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. name)
+        if _G.Oculus and _G.Oculus.Logger then
+            _G.Oculus.Logger:Log("Core", nil, "Module not found: " .. name)
+        end
         return false
     end
 
@@ -83,15 +96,22 @@ function Oculus:EnableModule(name)
     end
 
     self.Storage.EnabledModules[name] = true
-    print("|cFF00FF00[Oculus]|r " .. name .. " " .. L["Module Enabled"])
+
+    if _G.Oculus and _G.Oculus.Logger then
+        _G.Oculus.Logger:Log("Core", nil, "Module enabled: " .. name)
+    end
+
     return true
 end
+
 
 -- Disable Module
 function Oculus:DisableModule(name)
     local module = self.Modules[name]
     if not module then
-        print("|cFFFF0000[Oculus]|r " .. L["Module Not Found"] .. ": " .. name)
+        if _G.Oculus and _G.Oculus.Logger then
+            _G.Oculus.Logger:Log("Core", nil, "Module not found: " .. name)
+        end
         return false
     end
 
@@ -100,9 +120,14 @@ function Oculus:DisableModule(name)
     end
 
     self.Storage.EnabledModules[name] = false
-    print("|cFFFFFF00[Oculus]|r " .. name .. " " .. L["Module Disabled"])
+
+    if _G.Oculus and _G.Oculus.Logger then
+        _G.Oculus.Logger:Log("Core", nil, "Module disabled: " .. name)
+    end
+
     return true
 end
+
 
 -- Is Module Enabled
 function Oculus:IsModuleEnabled(name)
@@ -110,71 +135,11 @@ function Oculus:IsModuleEnabled(name)
 end
 
 
--- Slash Commands
-SLASH_OCULUS1 = "/oculus"
-SLASH_OCULUS2 = "/oc"
-
-local function handleSlashCommand(msg)
-    local command, arg = msg:match("^(%S*)%s*(.-)$")
-    command = command:lower()
-
-    if command == "" or command == "config" or command == "options" then
-        if Oculus.OpenSettings then
-            Oculus:OpenSettings()
-        else
-            print("|cFF00FF00[Oculus]|r " .. L["Commands"] .. ":")
-            print("  " .. L["Cmd Open Settings"])
-            print("  " .. L["Cmd Enable Module"])
-            print("  " .. L["Cmd Disable Module"])
-            print("  " .. L["Cmd Status"])
-            print("  " .. L["Cmd Test"])
-            print("  " .. L["Cmd Version"])
-        end
-
-    elseif command == "help" then
-        print("|cFF00FF00[Oculus]|r " .. L["Commands"] .. ":")
-        print("  " .. L["Cmd Open Settings"])
-        print("  " .. L["Cmd Enable Module"])
-        print("  " .. L["Cmd Disable Module"])
-        print("  " .. L["Cmd Status"])
-        print("  " .. L["Cmd Test"])
-        print("  " .. L["Cmd Version"])
-
-    elseif command == "enable" and arg ~= "" then
-        Oculus:EnableModule(arg)
-
-    elseif command == "disable" and arg ~= "" then
-        Oculus:DisableModule(arg)
-
-    elseif command == "status" then
-        print("|cFF00FF00[Oculus]|r " .. L["Module Status"] .. ":")
-        for name, enabled in pairs(Oculus.Storage.EnabledModules) do
-            local status = enabled
-                and "|cFF00FF00" .. L["Module Enabled"] .. "|r"
-                or "|cFFFF0000" .. L["Module Disabled"] .. "|r"
-            print("  " .. name .. ": " .. status)
-        end
-
-    elseif command == "test" then
-        print("|cFFFFFF00[Oculus]|r " .. L["Test Not Implemented"])
-
-    elseif command == "version" then
-        print("|cFF00FF00[Oculus]|r Version: " .. Oculus.Version)
-
-    else
-        print("|cFFFF0000[Oculus]|r " .. L["Unknown Command"] .. ": " .. command)
-    end
-end
-
-SlashCmdList["OCULUS"] = handleSlashCommand
-
-
 -- Event Handlers
 local eventHandlers = {
     ADDON_LOADED = function(loadedAddon)
         if loadedAddon == addonName then
             initializeDB()
-            print("|cFF00FF00[Oculus]|r Core loaded (v" .. Oculus.Version .. ")")
         end
     end,
 
@@ -186,6 +151,7 @@ local eventHandlers = {
         end
     end,
 }
+
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")

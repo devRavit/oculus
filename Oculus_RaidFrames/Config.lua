@@ -468,6 +468,9 @@ local function refreshControls()
             end
         end)
     end
+    if controls.BuffShowTimerCheckbox then
+        controls.BuffShowTimerCheckbox:SetChecked(configuration.Buff.ShowTimer)
+    end
     if controls.BuffsPerRowSlider then
         local slider = controls.BuffsPerRowSlider
         slider:SetValue(configuration.Buff.PerRow)
@@ -518,8 +521,14 @@ local function refreshControls()
             end
         end)
     end
+    if controls.DebuffShowTimerCheckbox then
+        controls.DebuffShowTimerCheckbox:SetChecked(configuration.Debuff.ShowTimer)
+    end
     if controls.HideDispelOverlayCheckbox then
         controls.HideDispelOverlayCheckbox:SetChecked(configuration.Debuff.HideDispelOverlay)
+    end
+    if controls.HideDispelBorderCheckbox then
+        controls.HideDispelBorderCheckbox:SetChecked(configuration.Debuff.HideDispelBorder)
     end
     if controls.DebuffsPerRowSlider then
         local slider = controls.DebuffsPerRowSlider

@@ -73,6 +73,32 @@ function DebuffTab:Populate(parent, controls, helpers)
         end
     end)
 
+    -- Hide Dispel Border
+    local hideDispelBorderCheckbox = createCheckboxRow(parent, "HideDispelBorder", "Hide Dispel Border", true)
+    controls.HideDispelBorderCheckbox = hideDispelBorderCheckbox
+    hideDispelBorderCheckbox:SetScript("OnClick", function(self)
+        if isInitializing() then return end
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.HideDispelBorder = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end)
+
+    -- Show Timer
+    local showTimerCheckbox = createCheckboxRow(parent, "DebuffShowTimer", "Show Duration Timer", true)
+    controls.DebuffShowTimerCheckbox = showTimerCheckbox
+    showTimerCheckbox:SetScript("OnClick", function(self)
+        if isInitializing() then return end
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.ShowTimer = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end)
+
     -- Max Debuffs
     local maxDebuffsSlider = createSliderRow(parent, "MaxDebuffs", "Max Debuffs", 1, 15, 1, true)
     controls.MaxDebuffsSlider = maxDebuffsSlider

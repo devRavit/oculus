@@ -43,6 +43,7 @@ local DEFAULTS = {
             Anchor = "BOTTOMRIGHT",
             UseCustomPosition = false,
             Spacing = 0,
+            ShowTimer = true,
         },
         Debuff = {
             Size = 24,
@@ -52,6 +53,8 @@ local DEFAULTS = {
             UseCustomPosition = false,
             Spacing = 0,
             HideDispelOverlay = false,
+            HideDispelBorder = false,
+            ShowTimer = true,
         },
         Timer = {
             Show = true,

@@ -73,6 +73,19 @@ function BuffTab:PopulateBuffSettings(parent, controls, helpers)
         end
     end
 
+    -- Show Timer
+    local showTimerCheckbox = createCheckboxRow(parent, "BuffShowTimer", "Show Duration Timer", true)
+    controls.BuffShowTimerCheckbox = showTimerCheckbox
+    showTimerCheckbox:SetScript("OnClick", function(self)
+        if isInitializing() then return end
+        local storage = getStorage()
+        if storage then
+            storage.Buff = storage.Buff or {}
+            storage.Buff.ShowTimer = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end)
+
     -- Max Buffs
     local maxBuffsSlider = createSliderRow(parent, "MaxBuffs", "Max Buffs", 1, 15, 1, true)
     controls.MaxBuffsSlider = maxBuffsSlider

@@ -2,11 +2,12 @@
 ## Title: Oculus
 ## Notes: PvP Addon Suite - Core Module
 ## Author: RAVIT
-## Version: 0.2.0
-## SavedVariables: OculusStorage
+## Version: 0.2.1
+## SavedVariables: OculusStorage, OculusLogs
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
 Localization.lua
 Utils.lua
+Logger.lua
 Core.lua
 Config.lua

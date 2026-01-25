@@ -164,22 +164,18 @@ end
 
 -- Initialize timer for an aura frame (uses Blizzard's built-in timer)
 local function initializeTimer(auraFrame, showTimer)
-    if not auraFrame or not auraFrame.cooldown then return end
+    if not auraFrame then return end
 
-    -- Use Blizzard's built-in cooldown text
-    if showTimer then
-        auraFrame.cooldown:SetHideCountdownNumbers(false)
-    else
-        auraFrame.cooldown:SetHideCountdownNumbers(true)
-    end
+    local cooldown = auraFrame.cooldown or auraFrame.Cooldown
+    if not cooldown then return end
 
-    -- Customize Blizzard's cooldown text appearance (only once)
-    if showTimer and not auraFrame.OculusTimerStyled then
-        local cooldownText = auraFrame.cooldown.Text or auraFrame.cooldown.text
+    -- Find cooldown text
+    if not auraFrame.OculusCooldownText then
+        local cooldownText = cooldown.Text or cooldown.text
 
         if not cooldownText then
-            for i = 1, auraFrame.cooldown:GetNumRegions() do
-                local region = select(i, auraFrame.cooldown:GetRegions())
+            for i = 1, cooldown:GetNumRegions() do
+                local region = select(i, cooldown:GetRegions())
                 if region and region:GetObjectType() == "FontString" then
                     cooldownText = region
                     break
@@ -188,10 +184,44 @@ local function initializeTimer(auraFrame, showTimer)
         end
 
         if cooldownText then
-            cooldownText:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
-            cooldownText:SetTextColor(1, 1, 0)
             auraFrame.OculusCooldownText = cooldownText
-            auraFrame.OculusTimerStyled = true
+        end
+    end
+
+    -- Apply timer visibility
+    if showTimer then
+        cooldown:SetHideCountdownNumbers(false)
+
+        -- Show text and customize appearance (only once)
+        if auraFrame.OculusCooldownText then
+            auraFrame.OculusCooldownText:Show()
+
+            if not auraFrame.OculusTimerStyled then
+                auraFrame.OculusCooldownText:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+                auraFrame.OculusCooldownText:SetTextColor(1, 1, 0)
+                auraFrame.OculusTimerStyled = true
+            end
+        end
+
+        -- Remove hide hook if exists
+        if auraFrame.OculusTimerHideHook then
+            auraFrame.OculusCooldownText:SetScript("OnShow", nil)
+            auraFrame.OculusTimerHideHook = nil
+        end
+    else
+        cooldown:SetHideCountdownNumbers(true)
+
+        -- Force hide text directly
+        if auraFrame.OculusCooldownText then
+            auraFrame.OculusCooldownText:Hide()
+
+            -- Hook OnShow to force hide
+            if not auraFrame.OculusTimerHideHook then
+                auraFrame.OculusCooldownText:SetScript("OnShow", function(self)
+                    self:Hide()
+                end)
+                auraFrame.OculusTimerHideHook = true
+            end
         end
     end
 
@@ -380,10 +410,8 @@ local function clearDebugLog()
 end
 
 -- Setup OnUpdate script for aura frame to manage expiring border
-local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, size)
+local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, size, showTimer)
     if not auraFrame or not unit or not auraInstanceID then return end
-
-    local showTimer = config.Timer.Show
 
     -- Initialize timer (Blizzard's built-in)
     initializeTimer(auraFrame, showTimer)
@@ -482,12 +510,13 @@ local function preCreateTimers(frame)
     local config = buildConfig()
     local buffSize = config.Buff.Size or 20
     local debuffSize = config.Debuff.Size or 24
-    local showTimer = config.Timer.Show
+    local showBuffTimer = config.Buff.ShowTimer
+    local showDebuffTimer = config.Debuff.ShowTimer
 
     -- Pre-initialize buff frames
     if frame.buffFrames then
         for i, buff in ipairs(frame.buffFrames) do
-            initializeTimer(buff, showTimer)
+            initializeTimer(buff, showBuffTimer)
             initializeBorder(buff, buffSize)
         end
     end
@@ -495,7 +524,7 @@ local function preCreateTimers(frame)
     -- Pre-initialize debuff frames
     if frame.debuffFrames then
         for i, debuff in ipairs(frame.debuffFrames) do
-            initializeTimer(debuff, showTimer)
+            initializeTimer(debuff, showDebuffTimer)
             initializeBorder(debuff, debuffSize)
         end
     end
@@ -651,39 +680,44 @@ function Auras:ApplySettings(frame)
         for i, buff in ipairs(frame.buffFrames) do
             local shouldShow = buff:IsShown() and visibleIndex < maxBuffs
 
-            -- Set size only when not in combat (protected)
-            if not inCombat then
+            -- Always try to set size (use pcall for combat protection)
+            pcall(function()
                 buff:SetSize(buffSize, buffSize)
+            end)
 
-                -- Hide buffs exceeding MaxCount
+            -- Hide buffs exceeding MaxCount (only when not in combat)
+            if not inCombat then
                 if buff:IsShown() and visibleIndex >= maxBuffs then
                     buff:Hide()
                 end
+            end
 
-                -- Always reposition shown buffs to prevent overlap when size changes
-                if shouldShow then
-                    local col = visibleIndex % buffsPerRow
-                    local row = math.floor(visibleIndex / buffsPerRow)
-                    local xOffset, yOffset = self:CalculateAnchorOffset(
-                        buffAnchor, col, row, buffSize, buffSpacing, buffsPerRow
-                    )
-                    buff:ClearAllPoints()
-                    -- Anchor to healthBar instead of frame to avoid overlapping power bar
-                    buff:SetPoint(buffAnchor, frame.healthBar, buffAnchor, xOffset, yOffset)
-                    visibleIndex = visibleIndex + 1
-                end
-            else
-                -- During combat, just count visible for timer updates
-                if shouldShow then
-                    visibleIndex = visibleIndex + 1
-                end
+            -- Always reposition shown buffs (works in combat)
+            if shouldShow then
+                local col = visibleIndex % buffsPerRow
+                local row = 0  -- Force single row to keep buffs inside healthBar
+                local xOffset, _ = self:CalculateAnchorOffset(
+                    buffAnchor, col, row, buffSize, buffSpacing, buffsPerRow
+                )
+
+                -- Fixed small yOffset to keep buffs at bottom of healthBar
+                local yOffset = 0
+
+                buff:ClearAllPoints()
+                -- Anchor to healthBar to keep buffs inside frame boundary
+                buff:SetPoint(buffAnchor, frame.healthBar, buffAnchor, xOffset, yOffset)
+                visibleIndex = visibleIndex + 1
             end
 
             if shouldShow then
+                -- Force apply timer setting (Blizzard can reset it)
+                local showBuffTimer = configuration.Buff.ShowTimer
+                initializeTimer(buff, showBuffTimer)
+
                 registerWithMasque(buff)
                 -- Setup OnUpdate script for self-managed timer
                 if buff.auraInstanceID then
-                    setupAuraOnUpdate(buff, unit, buff.auraInstanceID, configuration, buffSize)
+                    setupAuraOnUpdate(buff, unit, buff.auraInstanceID, configuration, buffSize, showBuffTimer)
                 end
             else
                 -- Clear OnUpdate when hidden
@@ -718,40 +752,55 @@ function Auras:ApplySettings(frame)
         for i, debuff in ipairs(frame.debuffFrames) do
             local shouldShow = debuff:IsShown() and visibleIndex < maxDebuffs
 
-            -- Set size only when not in combat (protected)
-            if not inCombat then
+            -- Always try to set size (use pcall for combat protection)
+            pcall(function()
                 debuff:SetSize(debuffSize, debuffSize)
+            end)
 
-                -- Hide debuffs exceeding MaxCount
+            -- Hide debuffs exceeding MaxCount (only when not in combat)
+            if not inCombat then
                 if debuff:IsShown() and visibleIndex >= maxDebuffs then
                     debuff:Hide()
                 end
+            end
 
-                -- Always reposition shown debuffs to prevent overlap when size changes
-                if shouldShow then
-                    local col = visibleIndex % debuffsPerRow
-                    local row = math.floor(visibleIndex / debuffsPerRow)
-                    local xOffset, yOffset = self:CalculateAnchorOffset(
-                        debuffAnchor, col, row, debuffSize, debuffSpacing, debuffsPerRow
-                    )
-                    debuff:ClearAllPoints()
-                    -- Anchor to healthBar instead of frame to avoid overlapping power bar
-                    debuff:SetPoint(debuffAnchor, frame.healthBar, debuffAnchor, xOffset, yOffset)
-                    visibleIndex = visibleIndex + 1
+            -- Always reposition shown debuffs (works in combat)
+            if shouldShow then
+                local col = visibleIndex % debuffsPerRow
+                local row = 0  -- Force single row to keep debuffs inside healthBar
+                local xOffset, _ = self:CalculateAnchorOffset(
+                    debuffAnchor, col, row, debuffSize, debuffSpacing, debuffsPerRow
+                )
+
+                -- Fixed small yOffset to keep debuffs at bottom of healthBar
+                local yOffset = 0
+
+                debuff:ClearAllPoints()
+                -- Anchor to healthBar to keep debuffs inside frame boundary
+                debuff:SetPoint(debuffAnchor, frame.healthBar, debuffAnchor, xOffset, yOffset)
+
+                -- Enhance dispel type border visibility (if not hidden)
+                if not configuration.Debuff.HideDispelBorder and debuff.border then
+                    pcall(function()
+                        -- Enlarge default border significantly for better visibility
+                        debuff.border:SetSize(debuffSize * 2.0, debuffSize * 2.0)
+                        debuff.border:SetAlpha(1.0)
+                    end)
                 end
-            else
-                -- During combat, just count visible for timer updates
-                if shouldShow then
-                    visibleIndex = visibleIndex + 1
-                end
+
+                visibleIndex = visibleIndex + 1
             end
 
             if shouldShow then
+                -- Force apply timer setting (Blizzard can reset it)
+                local showDebuffTimer = configuration.Debuff.ShowTimer
+                initializeTimer(debuff, showDebuffTimer)
+
                 registerWithMasque(debuff)
 
                 -- Setup OnUpdate script for self-managed timer
                 if debuff.auraInstanceID then
-                    setupAuraOnUpdate(debuff, unit, debuff.auraInstanceID, configuration, debuffSize)
+                    setupAuraOnUpdate(debuff, unit, debuff.auraInstanceID, configuration, debuffSize, showDebuffTimer)
                 end
             else
                 -- Clear OnUpdate when hidden
@@ -817,6 +866,29 @@ function Auras:UpdateTimers()
                 if dispelDebuff1 and dispelDebuff1:IsShown() then
                     dispelDebuff1:Hide()
                     dispelDebuff1:SetAlpha(0)
+                end
+            end
+        end
+
+        -- Enforce timer visibility settings (continuously)
+        if frame.buffFrames and not configuration.Buff.ShowTimer then
+            for _, buff in ipairs(frame.buffFrames) do
+                if buff:IsShown() then
+                    local cooldown = buff.cooldown or buff.Cooldown
+                    if cooldown then
+                        cooldown:SetHideCountdownNumbers(true)
+                    end
+                end
+            end
+        end
+
+        if frame.debuffFrames and not configuration.Debuff.ShowTimer then
+            for _, debuff in ipairs(frame.debuffFrames) do
+                if debuff:IsShown() then
+                    local cooldown = debuff.cooldown or debuff.Cooldown
+                    if cooldown then
+                        cooldown:SetHideCountdownNumbers(true)
+                    end
                 end
             end
         end
@@ -1151,4 +1223,232 @@ function Auras:SetSetting(key, value)
     end
 
     self:RefreshAllFrames()
+end
+
+
+-- Test aura data (icons and dispel types)
+local TEST_BUFFS = {
+    {icon = 136075, name = "Thorns"},              -- Green shield
+    {icon = 135987, name = "Power Word: Fortitude"}, -- Blue buff
+    {icon = 136090, name = "Arcane Intellect"},    -- Purple buff
+    {icon = 136112, name = "Battle Shout"},        -- Red buff
+    {icon = 237542, name = "Mark of the Wild"},    -- Green paw
+    {icon = 135923, name = "Blessing of Kings"},   -- Yellow crown
+}
+
+local TEST_DEBUFFS = {
+    {icon = 136071, name = "Polymorph", dispelType = "Magic", color = {0.2, 0.6, 1}},      -- Blue
+    {icon = 136066, name = "Corruption", dispelType = "Disease", color = {0.6, 0.4, 0}},  -- Brown
+    {icon = 136016, name = "Deadly Poison", dispelType = "Poison", color = {0, 0.8, 0}},  -- Green
+    {icon = 136203, name = "Curse of Agony", dispelType = "Curse", color = {0.6, 0, 1}},  -- Purple
+    {icon = 136145, name = "Fear", dispelType = "Magic", color = {0.2, 0.6, 1}},          -- Blue
+    {icon = 136170, name = "Silence", dispelType = nil, color = {1, 0, 0}},               -- Red (no dispel)
+}
+
+
+-- Create test auras on frames for preview mode
+local function createTestAuras(frame)
+    if not frame or not frame.buffFrames or not frame.debuffFrames then return end
+
+    local config = buildConfig()
+    local maxBuffs = math.min(6, config.Buff.MaxCount or 9)
+    local maxDebuffs = math.min(6, config.Debuff.MaxCount or 6)
+
+    -- Create test buffs
+    for i = 1, maxBuffs do
+        local buff = frame.buffFrames[i]
+        if buff then
+            local testBuff = TEST_BUFFS[((i - 1) % #TEST_BUFFS) + 1]
+            if buff.icon or buff.Icon then
+                local iconTexture = buff.icon or buff.Icon
+                iconTexture:SetTexture(testBuff.icon)
+            end
+
+            -- Set fake cooldown and expiration time
+            local duration = 30 + (i * 10)
+            local expirationTime = GetTime() + duration
+
+            if buff.cooldown or buff.Cooldown then
+                local cooldown = buff.cooldown or buff.Cooldown
+                cooldown:SetCooldown(expirationTime - duration, duration)
+            end
+
+            -- Store expiration time for auto-hide
+            buff.testExpirationTime = expirationTime
+
+            -- Clear auraInstanceID to prevent tooltip errors
+            buff.auraInstanceID = nil
+
+            -- Disable tooltip for test auras
+            buff:SetScript("OnEnter", nil)
+            buff:SetScript("OnLeave", nil)
+
+            -- Add OnUpdate to hide when expired
+            buff:SetScript("OnUpdate", function(self)
+                if self.testExpirationTime and GetTime() >= self.testExpirationTime then
+                    self:Hide()
+                    self:SetScript("OnUpdate", nil)
+                    self.testExpirationTime = nil
+                end
+            end)
+
+            buff:Show()
+        end
+    end
+
+    -- Create test debuffs
+    for i = 1, maxDebuffs do
+        local debuff = frame.debuffFrames[i]
+        if debuff then
+            local testDebuff = TEST_DEBUFFS[((i - 1) % #TEST_DEBUFFS) + 1]
+            if debuff.icon or debuff.Icon then
+                local iconTexture = debuff.icon or debuff.Icon
+                iconTexture:SetTexture(testDebuff.icon)
+            end
+
+            -- Set border color based on dispel type
+            if debuff.border and testDebuff.color then
+                debuff.border:SetVertexColor(testDebuff.color[1], testDebuff.color[2], testDebuff.color[3])
+                debuff.border:Show()
+            end
+
+            -- Set fake cooldown and expiration time
+            local duration = 20 + (i * 5)
+            local expirationTime = GetTime() + duration
+
+            if debuff.cooldown or debuff.Cooldown then
+                local cooldown = debuff.cooldown or debuff.Cooldown
+                cooldown:SetCooldown(expirationTime - duration, duration)
+            end
+
+            -- Store expiration time for auto-hide
+            debuff.testExpirationTime = expirationTime
+
+            -- Clear auraInstanceID to prevent tooltip errors
+            debuff.auraInstanceID = nil
+
+            -- Disable tooltip for test auras
+            debuff:SetScript("OnEnter", nil)
+            debuff:SetScript("OnLeave", nil)
+
+            -- Add OnUpdate to hide when expired
+            debuff:SetScript("OnUpdate", function(self)
+                if self.testExpirationTime and GetTime() >= self.testExpirationTime then
+                    self:Hide()
+                    self:SetScript("OnUpdate", nil)
+                    self.testExpirationTime = nil
+                end
+            end)
+
+            debuff:Show()
+        end
+    end
+end
+
+
+-- Clear test auras from frames
+local function clearTestAuras(frame)
+    if not frame then return end
+
+    -- Restore buff tooltips and hide
+    if frame.buffFrames then
+        for i, buff in ipairs(frame.buffFrames) do
+            -- Clear test scripts and data
+            buff:SetScript("OnUpdate", nil)
+            buff.testExpirationTime = nil
+
+            -- Restore original Blizzard tooltip handlers
+            if CompactUnitFrameBuff_OnEnter then
+                buff:SetScript("OnEnter", CompactUnitFrameBuff_OnEnter)
+            end
+            if CompactUnitFrameBuff_OnLeave then
+                buff:SetScript("OnLeave", CompactUnitFrameBuff_OnLeave)
+            end
+            buff.auraInstanceID = nil
+            buff:Hide()
+        end
+    end
+
+    -- Restore debuff tooltips and hide
+    if frame.debuffFrames then
+        for i, debuff in ipairs(frame.debuffFrames) do
+            -- Clear test scripts and data
+            debuff:SetScript("OnUpdate", nil)
+            debuff.testExpirationTime = nil
+
+            -- Restore original Blizzard tooltip handlers
+            if CompactUnitFrameDebuff_OnEnter then
+                debuff:SetScript("OnEnter", CompactUnitFrameDebuff_OnEnter)
+            end
+            if CompactUnitFrameDebuff_OnLeave then
+                debuff:SetScript("OnLeave", CompactUnitFrameDebuff_OnLeave)
+            end
+            debuff.auraInstanceID = nil
+            debuff:Hide()
+        end
+    end
+end
+
+
+-- Toggle preview mode to show party frames for testing
+function Auras:TogglePreview()
+    if not self.previewMode then
+        -- Enable preview mode
+        self.previewMode = true
+
+        -- Force show party frames (works even when solo)
+        if CompactRaidFrameManager then
+            CompactRaidFrameManager_SetSetting("IsShown", "1")
+            CompactRaidFrameManager_UpdateShown()
+        end
+
+        -- Apply test auras after frames are shown
+        C_Timer.After(0.3, function()
+            self:RefreshAllFrames()
+
+            -- Add test auras to all visible party frames
+            C_Timer.After(0.1, function()
+                -- Player frame
+                if CompactPartyFrame then
+                    createTestAuras(CompactPartyFrame)
+                end
+
+                -- Party member frames
+                for i = 1, 4 do
+                    local frame = _G["CompactPartyFrameMember" .. i]
+                    if frame then
+                        createTestAuras(frame)
+                    end
+                end
+            end)
+        end)
+
+        print("|cFF00FF00[Oculus]|r Preview Mode: ON (Test auras displayed)")
+    else
+        -- Disable preview mode
+        self.previewMode = false
+
+        -- Clear test auras
+        if CompactPartyFrame then
+            clearTestAuras(CompactPartyFrame)
+        end
+        for i = 1, 4 do
+            local frame = _G["CompactPartyFrameMember" .. i]
+            if frame then
+                clearTestAuras(frame)
+            end
+        end
+
+        -- Restore normal party frame visibility
+        if CompactRaidFrameManager then
+            CompactRaidFrameManager_UpdateShown()
+        end
+
+        -- Refresh to show real auras
+        C_Timer.After(0.1, function()
+            self:RefreshAllFrames()
+        end)
+
+        print("|cFF00FF00[Oculus]|r Preview Mode: OFF")
+    end
 end
