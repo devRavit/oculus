@@ -2,7 +2,7 @@
 ## Title: Oculus - UnitFrames
 ## Notes: Player/Target/Focus buff/debuff highlighting
 ## Author: RAVIT
-## Version: 0.2.1
+## Version: 0.2.2
 ## Dependencies: Oculus
 ## SavedVariables: OculusUnitFramesStorage
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
