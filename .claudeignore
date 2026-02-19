@@ -1,0 +1,6 @@
+# Logs
+debug.log
+*.log
+
+# Scripts (generated/tooling)
+scripts/
