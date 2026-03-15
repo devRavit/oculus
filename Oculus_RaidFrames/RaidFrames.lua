@@ -58,6 +58,7 @@ local DEFAULTS = {
             Spacing = 0,
             HideDispelOverlay = false,
             HideDispelBorder = false,
+            DispelBorderSize = 1.0,
             ShowTimer = true,
         },
         Timer = {
