@@ -22,6 +22,7 @@ local CompactRaidFrameContainer = CompactRaidFrameContainer
 local InCombatLockdown = InCombatLockdown
 local EditModeManagerFrame = EditModeManagerFrame
 local STANDARD_TEXT_FONT = STANDARD_TEXT_FONT
+local UnitInRange = UnitInRange
 
 
 -- Module References
@@ -1005,6 +1006,24 @@ function Auras:UpdateTimers()
     end
 end
 
+-- Apply range fade to a single frame using UnitInRange
+local function applyRangeFade(frame)
+    if not frame or not frame.unit then return end
+    local storage = RaidFrames:GetStorage()
+    if not storage or not storage.Frame or not storage.Frame.RangeFade then return end
+    local rangeFade = storage.Frame.RangeFade
+    if not rangeFade.Enabled then
+        frame:SetAlpha(1.0)
+        return
+    end
+    local inRange, checkedRange = UnitInRange(frame.unit)
+    if checkedRange and not inRange then
+        frame:SetAlpha(rangeFade.MinAlpha or 0.55)
+    else
+        frame:SetAlpha(1.0)
+    end
+end
+
 -- Refresh all frames (full settings application)
 function Auras:RefreshAllFrames()
     -- Skip during edit mode to avoid interfering with Blizzard's layout system
@@ -1017,7 +1036,7 @@ function Auras:RefreshAllFrames()
         CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
             if frame and frame.unit then
                 self:ApplySettings(frame)
-                CompactUnitFrame_UpdateRangeCheck(frame)
+                applyRangeFade(frame)
             end
         end)
     end
@@ -1027,7 +1046,7 @@ function Auras:RefreshAllFrames()
         local frame = _G["CompactPartyFrameMember" .. i]
         if frame then
             self:ApplySettings(frame)
-            CompactUnitFrame_UpdateRangeCheck(frame)
+            applyRangeFade(frame)
         end
     end
 
@@ -1036,7 +1055,7 @@ function Auras:RefreshAllFrames()
         local petFrame = _G["CompactPartyFrameMemberPet" .. i]
         if petFrame then
             self:ApplySettings(petFrame)
-            CompactUnitFrame_UpdateRangeCheck(petFrame)
+            applyRangeFade(petFrame)
         end
     end
 end
@@ -1081,21 +1100,25 @@ function Auras:Enable()
         self.Hooked = true
     end
 
-    -- Hook CompactUnitFrame_UpdateRangeCheck to override range fade alpha
-    if not self.RangeFadeHooked then
-        hooksecurefunc("CompactUnitFrame_UpdateRangeCheck", function(frame)
+    -- Register UNIT_IN_RANGE_UPDATE to apply range fade when units move in/out of range
+    if not self.RangeFadeEventFrame then
+        self.RangeFadeEventFrame = CreateFrame("Frame")
+        self.RangeFadeEventFrame:RegisterEvent("UNIT_IN_RANGE_UPDATE")
+        self.RangeFadeEventFrame:SetScript("OnEvent", function(_, event)
             if not isEnabled then return end
-            local storage = RaidFrames:GetStorage()
-            if not storage or not storage.Frame or not storage.Frame.RangeFade then return end
-            local rangeFade = storage.Frame.RangeFade
-            if not rangeFade.Enabled then
-                frame:SetAlpha(1.0)
-            elseif frame:GetAlpha() < (rangeFade.MinAlpha or 0.55) then
-                frame:SetAlpha(rangeFade.MinAlpha or 0.55)
-            end
+            -- Defer to ensure Blizzard's internal alpha update has completed
+            C_Timer.After(0, function()
+                if CompactRaidFrameContainer then
+                    CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
+                        if frame and frame.unit then applyRangeFade(frame) end
+                    end)
+                end
+                for i = 1, 5 do
+                    local frame = _G["CompactPartyFrameMember" .. i]
+                    if frame then applyRangeFade(frame) end
+                end
+            end)
         end)
-
-        self.RangeFadeHooked = true
     end
 
     -- Combat state tracking
