@@ -22,7 +22,6 @@ local CompactRaidFrameContainer = CompactRaidFrameContainer
 local InCombatLockdown = InCombatLockdown
 local EditModeManagerFrame = EditModeManagerFrame
 local STANDARD_TEXT_FONT = STANDARD_TEXT_FONT
-local UnitInRange = UnitInRange
 
 
 -- Module References
@@ -1006,21 +1005,22 @@ function Auras:UpdateTimers()
     end
 end
 
--- Apply range fade to a single frame using UnitInRange
+-- Apply range fade to a single frame
+-- Blizzard이 이미 설정한 alpha를 읽어 클램핑 (Secret Value 분기 없음)
 local function applyRangeFade(frame)
     if not frame or not frame.unit then return end
     local storage = RaidFrames:GetStorage()
     if not storage or not storage.Frame or not storage.Frame.RangeFade then return end
     local rangeFade = storage.Frame.RangeFade
     if not rangeFade.Enabled then
+        -- 사거리 투명도 비활성화: 항상 완전 불투명
         frame:SetAlpha(1.0)
         return
     end
-    local inRange, checkedRange = UnitInRange(frame.unit)
-    if checkedRange and not inRange then
+    -- 최소 불투명도 클램핑: GetAlpha()는 일반 number 반환 (secret value 아님)
+    local currentAlpha = frame:GetAlpha()
+    if currentAlpha < (rangeFade.MinAlpha or 0.55) then
         frame:SetAlpha(rangeFade.MinAlpha or 0.55)
-    else
-        frame:SetAlpha(1.0)
     end
 end
 
