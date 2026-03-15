@@ -33,6 +33,10 @@ local DEFAULTS = {
         HideName = false,
         HideAggroBorder = false,
         HidePartyTitle = false,
+        RangeFade = {
+            Enabled = true,  -- true = 사거리 투명도 활성화 (MinAlpha 이상으로 클램핑), false = 항상 완전 불투명
+            MinAlpha = 0.55, -- 사거리 밖일 때 최소 불투명도 (0.0 ~ 1.0)
+        },
     },
     Auras = {
         Enabled = true,

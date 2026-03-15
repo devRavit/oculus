@@ -28,6 +28,10 @@ local DEFAULTS = {
         HideName = false,
         HideAggroBorder = false,
         HidePartyTitle = false,
+        RangeFade = {
+            Enabled = true,
+            MinAlpha = 0.55,
+        },
     },
     Buff = {
         Size = 20,
@@ -442,6 +446,28 @@ local function refreshControls()
     end
     if controls.HidePartyTitleCheckbox then
         controls.HidePartyTitleCheckbox:SetChecked(configuration.Frame.HidePartyTitle)
+    end
+    if controls.RangeFadeCheckbox then
+        local rangeFade = configuration.Frame.RangeFade or DEFAULTS.Frame.RangeFade
+        local enabled = rangeFade.Enabled ~= false
+        controls.RangeFadeCheckbox:SetChecked(enabled)
+        if controls.RangeFadeMinAlphaSlider and controls.RangeFadeMinAlphaSlider.Row then
+            controls.RangeFadeMinAlphaSlider.Row:SetAlpha(enabled and 1.0 or 0.5)
+        end
+    end
+    if controls.RangeFadeMinAlphaSlider then
+        local rangeFade = configuration.Frame.RangeFade or DEFAULTS.Frame.RangeFade
+        local value = math.floor((rangeFade.MinAlpha or 0.55) * 100)
+        local slider = controls.RangeFadeMinAlphaSlider
+        slider:SetValue(value)
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(value)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(value)
+                end
+            end
+        end)
     end
 
     -- Buff Settings
