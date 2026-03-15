@@ -1,0 +1,12 @@
+## Interface: 120000
+## Title: Oculus - General
+## Notes: Frame Position Manager (TotemBar, DruidBar)
+## Author: RAVIT
+## Version: 0.2.2
+## Dependencies: Oculus
+## SavedVariables: OculusGeneralStorage
+## IconTexture: Interface\Icons\INV_Misc_Eye_01
+
+General.lua
+LossOfControl.lua
+Config.lua

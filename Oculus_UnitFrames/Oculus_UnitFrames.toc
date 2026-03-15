@@ -8,5 +8,4 @@
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
 UnitFrames.lua
-LossOfControl.lua
 Config.lua

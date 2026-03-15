@@ -366,8 +366,9 @@ end
 local function registerSettings()
     local mainPanel = createMainPanel()
 
-    -- Sub panels
+    -- Sub panels (순서 = 메뉴 표시 순서)
     local subPanels = {
+        createSubPanel("General", "General Module", "General Module Desc"),
         createSubPanel("UnitFrames", "Unit Frames", "Unit Frames Desc"),
         createSubPanel("RaidFrames", "Raid Frames", "Raid Frames Desc"),
         createSubPanel("ArenaFrames", "Arena Frames", "Arena Frames Desc"),
