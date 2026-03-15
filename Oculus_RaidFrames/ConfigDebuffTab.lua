@@ -86,6 +86,19 @@ function DebuffTab:Populate(parent, controls, helpers)
         end
     end)
 
+    -- Dispel Border Size
+    local dispelBorderSizeSlider = createSliderRow(parent, "DispelBorderSize", "Dispel Border Size", 0.5, 3.0, 0.1, true)
+    controls.DispelBorderSizeSlider = dispelBorderSizeSlider
+    dispelBorderSizeSlider.userCallback = function(self, value)
+        if isInitializing() then return end
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.DispelBorderSize = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end
+
     -- Show Timer
     local showTimerCheckbox = createCheckboxRow(parent, "DebuffShowTimer", "Show Duration Timer", true)
     controls.DebuffShowTimerCheckbox = showTimerCheckbox

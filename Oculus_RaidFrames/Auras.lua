@@ -783,8 +783,10 @@ function Auras:ApplySettings(frame)
                 -- Enhance dispel type border visibility (if not hidden)
                 if not configuration.Debuff.HideDispelBorder and debuff.border then
                     pcall(function()
-                        -- Enlarge default border significantly for better visibility
-                        debuff.border:SetSize(debuffSize * 2.0, debuffSize * 2.0)
+                        local sizeMultiplier = configuration.Debuff.DispelBorderSize or 1.0
+                        debuff.border:ClearAllPoints()
+                        debuff.border:SetPoint("CENTER", debuff, "CENTER", 0, 0)
+                        debuff.border:SetSize(debuffSize * sizeMultiplier, debuffSize * sizeMultiplier)
                         debuff.border:SetAlpha(1.0)
                     end)
                 end

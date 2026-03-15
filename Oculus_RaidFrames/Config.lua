@@ -212,6 +212,25 @@ end
 local function createSliderRow(parent, name, labelKey, min, max, step, useIndent)
     cumulativeY = cumulativeY - 8
 
+    -- Compute decimal places from step (e.g. step=0.1 → 1, step=1 → 0)
+    local decimalPlaces = 0
+    local stepStr = tostring(step)
+    local dot = stepStr:find("%.")
+    if dot then decimalPlaces = #stepStr - dot end
+
+    local function formatValue(val)
+        if decimalPlaces == 0 then
+            return tostring(math.floor(val))
+        end
+        return string.format("%." .. decimalPlaces .. "f", val)
+    end
+
+    local function roundToStep(val)
+        return math.floor(val / step + 0.5) * step
+    end
+
+    local lastEmittedValue = nil
+
     local xOffset = useIndent and INDENT or 0
     local row = CreateFrame("Frame", nil, parent)
     row:SetHeight(ROW_HEIGHT + 10)
@@ -231,8 +250,8 @@ local function createSliderRow(parent, name, labelKey, min, max, step, useIndent
     valueBox:SetPoint("RIGHT", row, "RIGHT", -4, 0)
     valueBox:SetSize(55, 22)
     valueBox:SetAutoFocus(false)
-    valueBox:SetNumeric(true)
-    valueBox:SetMaxLetters(4)
+    valueBox:SetNumeric(decimalPlaces == 0)  -- 소수점 있으면 자유 입력
+    valueBox:SetMaxLetters(decimalPlaces > 0 and 6 or 4)
     valueBox:SetJustifyH("CENTER")
     valueBox:SetFontObject("GameFontHighlight")
 
@@ -289,13 +308,14 @@ local function createSliderRow(parent, name, labelKey, min, max, step, useIndent
 
         -- Ensure fill width is at least 0
         trackFill:SetWidth(math.max(0, fillWidth))
-        valueBox:SetText(tostring(math.floor(val)))
+        valueBox:SetText(formatValue(val))
     end
 
     slider:SetScript("OnValueChanged", function(self, value)
-        value = math.floor(value)
+        value = roundToStep(value)
         updateFill(value)
-        if self.userCallback then
+        if self.userCallback and value ~= lastEmittedValue then
+            lastEmittedValue = value
             self.userCallback(self, value)
         end
     end)
@@ -316,19 +336,19 @@ local function createSliderRow(parent, name, labelKey, min, max, step, useIndent
         local value = tonumber(self:GetText())
         if value then
             value = math.max(min, math.min(max, value))
-            value = math.floor(value / step) * step
+            value = roundToStep(value)
             slider:SetValue(value)
         end
         self:ClearFocus()
     end)
 
     valueBox:SetScript("OnEscapePressed", function(self)
-        self:SetText(tostring(math.floor(slider:GetValue())))
+        self:SetText(formatValue(roundToStep(slider:GetValue())))
         self:ClearFocus()
     end)
 
     valueBox:SetScript("OnEditFocusLost", function(self)
-        self:SetText(tostring(math.floor(slider:GetValue())))
+        self:SetText(formatValue(roundToStep(slider:GetValue())))
     end)
 
     slider.ValueText = valueBox
@@ -555,6 +575,16 @@ local function refreshControls()
     end
     if controls.HideDispelBorderCheckbox then
         controls.HideDispelBorderCheckbox:SetChecked(configuration.Debuff.HideDispelBorder)
+    end
+    if controls.DispelBorderSizeSlider then
+        local slider = controls.DispelBorderSizeSlider
+        local value = configuration.Debuff.DispelBorderSize or 1.0
+        slider:SetValue(value)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(value)
+            end
+        end)
     end
     if controls.DebuffsPerRowSlider then
         local slider = controls.DebuffsPerRowSlider
