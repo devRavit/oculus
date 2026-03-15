@@ -19,6 +19,7 @@ local DEFAULTS = {
         UnitFrames = true,
         RaidFrames = true,
         ArenaFrames = true,
+        General = true,
     },
 }
 

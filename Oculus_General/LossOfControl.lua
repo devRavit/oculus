@@ -1,15 +1,19 @@
--- Oculus UnitFrames - LossOfControl
--- LossOfControlFrame customization (CC alert overlay)
+--[[
+    Oculus_General - LossOfControl (군중제어불가 알림)
+    Customizes the Blizzard LossOfControlFrame (CC alert overlay)
+]]
 
 local addonName, addon = ...
 
 
 -- Lua API Localization
 local math = math
+local tostring = tostring
 
 -- WoW API Localization
 local CooldownFrame_Set = CooldownFrame_Set
 local GetTime = GetTime
+local C_Timer = C_Timer
 
 
 -- Module Table
@@ -20,14 +24,22 @@ addon.LossOfControl = LossOfControl
 -- Debug log helper
 local function logDebug(message)
     if not _G.Oculus or not _G.Oculus.Logger then return end
-    _G.Oculus.Logger:Log("UnitFrames", "LossOfControl", message)
+    _G.Oculus.Logger:Log("General", "LossOfControl", message)
 end
 
 
--- Show or hide a frame element based on a shouldHide flag
+-- Show or hide a frame element
 local function setElementVisibility(element, shouldHide)
     if not element then return end
     if shouldHide then element:Hide() else element:Show() end
+end
+
+
+-- Get LossOfControl settings from General storage
+local function getSettings()
+    local storage = addon.General and addon.General.Storage
+    if not storage then return nil end
+    return storage.LossOfControl
 end
 
 
@@ -36,13 +48,11 @@ local function applySettings()
     local frame = _G["LossOfControlFrame"]
     if not frame then return end
 
-    local storage = addon.UnitFrames and addon.UnitFrames:GetStorage()
-    if not storage or not storage.LossOfControl then return end
+    local settings = getSettings()
+    if not settings then return end
 
-    local settings = storage.LossOfControl
-
-    setElementVisibility(frame.blackBg,      settings.HideBackground)
-    setElementVisibility(frame.RedLineTop,   settings.HideRedLines)
+    setElementVisibility(frame.blackBg,       settings.HideBackground)
+    setElementVisibility(frame.RedLineTop,    settings.HideRedLines)
     setElementVisibility(frame.RedLineBottom, settings.HideRedLines)
 
     local scale = (settings.Scale or 100) / 100
@@ -55,13 +65,12 @@ local function applySettings()
 end
 
 
--- Apply settings (for external call from Config)
 function LossOfControl:ApplySettings()
     applySettings()
 end
 
 
--- Test spell: Kidney Shot (408) — recognizable stun
+-- Test spell: Kidney Shot (408)
 local TEST_SPELL_ID = 408
 local TEST_DISPLAY_TYPE_FULL = 2
 
@@ -84,7 +93,6 @@ local function getSpellTexture(spellID)
 end
 
 
--- Populate frame children directly (fallback when SetUpDisplay unavailable)
 local function populateFrameDirectly(frame, spellName, iconTexture, testDuration)
     if frame.Icon then frame.Icon:SetTexture(iconTexture) end
     if frame.AbilityName then frame.AbilityName:SetText(spellName) end
@@ -99,7 +107,6 @@ local function populateFrameDirectly(frame, spellName, iconTexture, testDuration
 end
 
 
--- Test: show LossOfControlFrame populated with fake CC data for `duration` seconds
 function LossOfControl:TestShow(duration)
     local frame = _G["LossOfControlFrame"]
     if not frame then
@@ -121,9 +128,6 @@ function LossOfControl:TestShow(duration)
     local spellName   = getSpellName(TEST_SPELL_ID)
     local iconTexture = getSpellTexture(TEST_SPELL_ID)
 
-    logDebug("TestShow: spellName=" .. tostring(spellName) .. " icon=" .. tostring(iconTexture))
-
-    -- SetUpDisplay populates icon/name/cooldown and calls Show() → triggers OnShow hook
     local usedSetUpDisplay = false
     if frame.SetUpDisplay then
         local ok, err = pcall(frame.SetUpDisplay, frame, false, {
@@ -140,7 +144,6 @@ function LossOfControl:TestShow(duration)
         })
         if ok then
             usedSetUpDisplay = true
-            logDebug("TestShow: SetUpDisplay succeeded")
         else
             logDebug("TestShow: SetUpDisplay failed: " .. tostring(err))
         end
@@ -150,7 +153,6 @@ function LossOfControl:TestShow(duration)
         populateFrameDirectly(frame, spellName, iconTexture, testDuration)
         applySettings()
         frame:Show()
-        logDebug("TestShow: used direct fallback")
     end
 
     self._testTimer = C_Timer.NewTimer(testDuration, function()
@@ -160,7 +162,6 @@ function LossOfControl:TestShow(duration)
 end
 
 
--- Hide test preview immediately
 function LossOfControl:TestHide()
     if self._testTimer then
         self._testTimer:Cancel()
@@ -171,7 +172,6 @@ function LossOfControl:TestHide()
 end
 
 
--- Enable module
 function LossOfControl:Enable()
     local frame = _G["LossOfControlFrame"]
     if not frame then
@@ -190,7 +190,6 @@ function LossOfControl:Enable()
 end
 
 
--- Disable module (reset to default)
 function LossOfControl:Disable()
     self.IsEnabled = false
 

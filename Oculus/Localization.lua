@@ -43,11 +43,33 @@ LOCALES["enUS"] = {
     ["Unit Frames"] = "Unit Frames",
     ["Raid Frames"] = "Raid Frames",
     ["Arena Frames"] = "Arena Frames",
+    ["General Module"] = "General",
 
     -- Module Descriptions
     ["Unit Frames Desc"] = "Player/Target/Focus buff/debuff filter",
     ["Raid Frames Desc"] = "Party buff/debuff + cooldown tracking + enemy cast alert",
     ["Arena Frames Desc"] = "Arena frame sorting + buff/debuff filter",
+    ["General Module Desc"] = "Reposition Blizzard frames (Totem Bar, Druid Bar)",
+
+    -- General
+    ["General Settings"] = "General Settings",
+    ["Class Bar Settings"] = "Class Bar Settings",
+
+    -- General Frame Mover
+    ["Class Bar"] = "Class Bar",
+    ["Frame Mover"] = "Frame Mover",
+    ["Frame Mover Desc"] = "Drag frames to reposition them. Click Unlock to show drag handles.",
+    ["Frame Lock"] = "Frame Lock",
+    ["Frame Anchor"] = "Frame Anchor",
+    ["Frame Position"] = "Frame Position",
+    ["Frame Scale"] = "Frame Scale",
+    ["Reset Positions"] = "Reset Positions",
+    ["Unlock Frames"] = "Unlock Frames",
+    ["Lock Frames"] = "Lock Frames",
+    ["Reset Position"] = "Reset",
+    ["Totem Bar"] = "Totem Bar",
+    ["Druid Bar"] = "Druid Bar",
+    ["GEN Reset Confirm"] = "Reset General settings to defaults?",
 
     -- Export/Import Dialog
     ["Export Profile"] = "Export Profile",
@@ -224,11 +246,33 @@ LOCALES["koKR"] = {
     ["Unit Frames"] = "유닛 프레임",
     ["Raid Frames"] = "레이드 프레임",
     ["Arena Frames"] = "아레나 프레임",
+    ["General Module"] = "일반",
 
     -- Module Descriptions
     ["Unit Frames Desc"] = "플레이어/대상/주시대상 버프/디버프 필터",
     ["Raid Frames Desc"] = "파티 버프/디버프 + 쿨다운 트래킹 + 적 시전 알림",
     ["Arena Frames Desc"] = "아레나 프레임 정렬 + 버프/디버프 필터",
+    ["General Module Desc"] = "블리자드 프레임 위치 조정 (토템바, 드루이드 바)",
+
+    -- General
+    ["General Settings"] = "일반 설정",
+    ["Class Bar Settings"] = "클래스바 설정",
+
+    -- General Frame Mover
+    ["Class Bar"] = "클래스 바",
+    ["Frame Mover"] = "프레임 이동",
+    ["Frame Mover Desc"] = "잠금 해제 후 드래그로 프레임 위치를 조정하세요.",
+    ["Frame Lock"] = "잠금 설정",
+    ["Frame Anchor"] = "확장 방향",
+    ["Frame Position"] = "위치 설정",
+    ["Frame Scale"] = "크기 설정",
+    ["Reset Positions"] = "위치 초기화",
+    ["Unlock Frames"] = "잠금 해제",
+    ["Lock Frames"] = "잠금",
+    ["Reset Position"] = "초기화",
+    ["Totem Bar"] = "토템바",
+    ["Druid Bar"] = "드루이드 바",
+    ["GEN Reset Confirm"] = "General 설정을 기본값으로 초기화할까요?",
 
     -- Export/Import Dialog
     ["Export Profile"] = "프로필 내보내기",
@@ -343,15 +387,15 @@ LOCALES["koKR"] = {
     ["PORTRAIT"] = "초상화 (덮어쓰기)",
 
     -- UnitFrames LossOfControl Config
-    ["CC Alert"] = "CC 알림",
-    ["CC Alert Settings"] = "CC 알림 설정",
-    ["CC Alert Position"] = "CC 알림 위치",
+    ["CC Alert"] = "군중제어불가 알림",
+    ["CC Alert Settings"] = "군중제어불가 알림 설정",
+    ["CC Alert Position"] = "군중제어불가 알림 위치",
     ["Hide Background"] = "배경 숨김",
     ["Hide Red Lines"] = "빨간 선 숨김",
     ["CC Alert Scale (%)"] = "크기 (%)",
     ["Offset X"] = "X 오프셋",
     ["Offset Y"] = "Y 오프셋",
-    ["Preview CC Alert"] = "CC 알림 미리보기",
+    ["Preview CC Alert"] = "군중제어불가 알림 미리보기",
     ["Stop Preview"] = "미리보기 중지",
     ["UF Reset Confirm"] = "유닛 프레임 설정을 기본값으로 초기화할까요?",
     ["UF Settings Reset"] = "유닛 프레임 설정이 기본값으로 초기화되었습니다",

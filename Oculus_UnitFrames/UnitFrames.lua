@@ -34,13 +34,6 @@ end
 -- Constants
 local DEFAULTS = {
     Enabled = true,
-    LossOfControl = {
-        HideBackground = false,
-        HideRedLines = false,
-        Scale = 100,   -- percentage (50-200)
-        OffsetX = 0,   -- -500 to 500
-        OffsetY = 0,   -- -500 to 500
-    },
 }
 
 -- Expose defaults for Config reset
@@ -92,15 +85,6 @@ function UnitFrames:Enable()
         InitializeStorage()
     end
 
-    if not Storage.Enabled then
-        logDebug("Module disabled in storage")
-        return
-    end
-
-    if addon.LossOfControl then
-        addon.LossOfControl:Enable()
-    end
-
     logDebug("UnitFrames enabled")
 end
 
@@ -108,10 +92,6 @@ end
 -- Disable Module
 function UnitFrames:Disable()
     logDebug("Disable() called")
-
-    if addon.LossOfControl then
-        addon.LossOfControl:Disable()
-    end
 end
 
 
