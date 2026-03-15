@@ -1006,21 +1006,18 @@ function Auras:UpdateTimers()
 end
 
 -- Apply range fade to a single frame
--- Blizzard이 이미 설정한 alpha를 읽어 클램핑 (Secret Value 분기 없음)
+-- frame.optionTable.rangeAlpha 수정으로 Blizzard의 내부 range check에 적용
+-- Secret Value 읽기/비교 없음
 local function applyRangeFade(frame)
-    if not frame or not frame.unit then return end
+    if not frame or not frame.optionTable then return end
     local storage = RaidFrames:GetStorage()
     if not storage or not storage.Frame or not storage.Frame.RangeFade then return end
     local rangeFade = storage.Frame.RangeFade
     if not rangeFade.Enabled then
-        -- 사거리 투명도 비활성화: 항상 완전 불투명
-        frame:SetAlpha(1.0)
-        return
-    end
-    -- 최소 불투명도 클램핑: GetAlpha()는 일반 number 반환 (secret value 아님)
-    local currentAlpha = frame:GetAlpha()
-    if currentAlpha < (rangeFade.MinAlpha or 0.55) then
-        frame:SetAlpha(rangeFade.MinAlpha or 0.55)
+        frame.optionTable.rangeAlpha = 1.0
+        frame:SetAlpha(1.0)  -- 즉시 시각 반영
+    else
+        frame.optionTable.rangeAlpha = rangeFade.MinAlpha or 0.55
     end
 end
 
@@ -1106,18 +1103,15 @@ function Auras:Enable()
         self.RangeFadeEventFrame:RegisterEvent("UNIT_IN_RANGE_UPDATE")
         self.RangeFadeEventFrame:SetScript("OnEvent", function(_, event)
             if not isEnabled then return end
-            -- Defer to ensure Blizzard's internal alpha update has completed
-            C_Timer.After(0, function()
-                if CompactRaidFrameContainer then
-                    CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
-                        if frame and frame.unit then applyRangeFade(frame) end
-                    end)
-                end
-                for i = 1, 5 do
-                    local frame = _G["CompactPartyFrameMember" .. i]
-                    if frame then applyRangeFade(frame) end
-                end
-            end)
+            if CompactRaidFrameContainer then
+                CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
+                    if frame and frame.unit then applyRangeFade(frame) end
+                end)
+            end
+            for i = 1, 5 do
+                local frame = _G["CompactPartyFrameMember" .. i]
+                if frame then applyRangeFade(frame) end
+            end
         end)
     end
 
