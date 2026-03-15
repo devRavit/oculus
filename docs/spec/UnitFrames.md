@@ -8,13 +8,20 @@ Player, Target, Focus, Target-of-Target 프레임 강화
 
 ## 현재 상태
 
-모듈 스켈레톤만 존재. 저장소 초기화 및 모듈 등록만 수행.
+LossOfControlFrame 커스터마이징 기능 구현 완료.
 
 ## SavedVariables
 
 ```lua
 OculusUnitFramesStorage = {
     Enabled = true,
+    LossOfControl = {
+        HideBackground = false,  -- 어두운 배경 숨김
+        HideRedLines = false,    -- 빨간 선(RedLineTop/RedLineBottom) 숨김
+        Scale = 100,             -- 프레임 크기 (50-200%)
+        OffsetX = 0,             -- X 위치 오프셋 (-500 ~ 500)
+        OffsetY = 0,             -- Y 위치 오프셋 (-500 ~ 500)
+    },
 }
 ```
 
@@ -23,7 +30,28 @@ OculusUnitFramesStorage = {
 ```
 Oculus_UnitFrames/
 ├── Oculus_UnitFrames.toc
-└── UnitFrames.lua   -- 모듈 초기화, 스토리지 관리, 이벤트 등록
+├── UnitFrames.lua      -- 모듈 초기화, 스토리지 관리, 이벤트 등록
+├── LossOfControl.lua   -- LossOfControlFrame 커스터마이징 로직
+└── Config.lua          -- 설정 UI (탭/사이드바 구조)
+```
+
+## LossOfControl 기능
+
+### 개요
+플레이어가 CC (군중 제어) 당했을 때 화면 중앙에 표시되는 `LossOfControlFrame`을 커스터마이징.
+
+### 구현 방식
+- `LossOfControlFrame:HookScript("OnShow", applySettings)` — 프레임이 표시될 때마다 설정 적용
+- `LossOfControlFrame.blackBg` — 어두운 배경 Hide/Show
+- `LossOfControlFrame.RedLineTop` / `RedLineBottom` — 빨간 선 Hide/Show
+- `LossOfControlFrame:SetScale(scale)` — 크기 조절
+- `LossOfControlFrame:ClearAllPoints()` + `SetPoint("CENTER", UIParent, "CENTER", offsetX, offsetY)` — 위치 조절
+
+### API
+```lua
+addon.LossOfControl:Enable()          -- 훅 등록, 기능 활성화
+addon.LossOfControl:Disable()         -- 기능 비활성화, 기본값으로 복원
+addon.LossOfControl:ApplySettings()   -- 현재 Storage 설정 즉시 적용
 ```
 
 ## 제거된 기능

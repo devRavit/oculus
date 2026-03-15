@@ -4,6 +4,10 @@
 local addonName, addon = ...
 
 
+-- Lua API Localization
+local pairs = pairs
+local type = type
+
 -- WoW API Localization
 local CreateFrame = CreateFrame
 local C_AddOns = C_AddOns
@@ -30,7 +34,17 @@ end
 -- Constants
 local DEFAULTS = {
     Enabled = true,
+    LossOfControl = {
+        HideBackground = false,
+        HideRedLines = false,
+        Scale = 100,   -- percentage (50-200)
+        OffsetX = 0,   -- -500 to 500
+        OffsetY = 0,   -- -500 to 500
+    },
 }
+
+-- Expose defaults for Config reset
+UnitFrames.Defaults = DEFAULTS
 
 -- Module Version
 UnitFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.0.0"
@@ -40,6 +54,23 @@ UnitFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.0.0"
 local Storage = nil
 
 
+-- Deep merge defaults into target (preserves existing values including false/0)
+local function mergeDefaults(target, source)
+    for key, value in pairs(source) do
+        if target[key] == nil then
+            if type(value) == "table" then
+                target[key] = {}
+                mergeDefaults(target[key], value)
+            else
+                target[key] = value
+            end
+        elseif type(value) == "table" and type(target[key]) == "table" then
+            mergeDefaults(target[key], value)
+        end
+    end
+end
+
+
 -- Initialize Storage
 local function InitializeStorage()
     if not _G.OculusUnitFramesStorage then
@@ -47,9 +78,7 @@ local function InitializeStorage()
     end
 
     Storage = _G.OculusUnitFramesStorage
-    if Storage.Enabled == nil then
-        Storage.Enabled = DEFAULTS.Enabled
-    end
+    mergeDefaults(Storage, DEFAULTS)
 
     logDebug("Storage initialized (v" .. UnitFrames.Version .. ")")
 end
@@ -68,6 +97,10 @@ function UnitFrames:Enable()
         return
     end
 
+    if addon.LossOfControl then
+        addon.LossOfControl:Enable()
+    end
+
     logDebug("UnitFrames enabled")
 end
 
@@ -75,6 +108,10 @@ end
 -- Disable Module
 function UnitFrames:Disable()
     logDebug("Disable() called")
+
+    if addon.LossOfControl then
+        addon.LossOfControl:Disable()
+    end
 end
 
 

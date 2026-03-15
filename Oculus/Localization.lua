@@ -160,6 +160,20 @@ LOCALES["enUS"] = {
     ["BOTTOMRIGHT"] = "Bottom Right",
     ["PORTRAIT"] = "Portrait (Cover)",
 
+    -- UnitFrames LossOfControl Config
+    ["CC Alert"] = "CC Alert",
+    ["CC Alert Settings"] = "CC Alert Settings",
+    ["CC Alert Position"] = "CC Alert Position",
+    ["Hide Background"] = "Hide Background",
+    ["Hide Red Lines"] = "Hide Red Lines",
+    ["CC Alert Scale (%)"] = "Scale (%)",
+    ["Offset X"] = "Offset X",
+    ["Offset Y"] = "Offset Y",
+    ["Preview CC Alert"] = "Preview CC Alert",
+    ["Stop Preview"] = "Stop Preview",
+    ["UF Reset Confirm"] = "Reset UnitFrames settings to defaults?",
+    ["UF Settings Reset"] = "UnitFrames settings reset to defaults",
+
     -- UnitFrames Config
     ["UnitFrames"] = "UnitFrames",
     ["Icon Settings"] = "Icon Settings",
@@ -327,6 +341,20 @@ LOCALES["koKR"] = {
     ["BOTTOM"] = "하단",
     ["BOTTOMRIGHT"] = "우측 하단",
     ["PORTRAIT"] = "초상화 (덮어쓰기)",
+
+    -- UnitFrames LossOfControl Config
+    ["CC Alert"] = "CC 알림",
+    ["CC Alert Settings"] = "CC 알림 설정",
+    ["CC Alert Position"] = "CC 알림 위치",
+    ["Hide Background"] = "배경 숨김",
+    ["Hide Red Lines"] = "빨간 선 숨김",
+    ["CC Alert Scale (%)"] = "크기 (%)",
+    ["Offset X"] = "X 오프셋",
+    ["Offset Y"] = "Y 오프셋",
+    ["Preview CC Alert"] = "CC 알림 미리보기",
+    ["Stop Preview"] = "미리보기 중지",
+    ["UF Reset Confirm"] = "유닛 프레임 설정을 기본값으로 초기화할까요?",
+    ["UF Settings Reset"] = "유닛 프레임 설정이 기본값으로 초기화되었습니다",
 
     -- UnitFrames Config
     ["UnitFrames"] = "유닛 프레임",
