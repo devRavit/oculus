@@ -22,6 +22,7 @@ local CompactRaidFrameContainer = CompactRaidFrameContainer
 local InCombatLockdown = InCombatLockdown
 local EditModeManagerFrame = EditModeManagerFrame
 local STANDARD_TEXT_FONT = STANDARD_TEXT_FONT
+local UnitInRange = UnitInRange
 
 
 -- Module References
@@ -1006,18 +1007,18 @@ function Auras:UpdateTimers()
 end
 
 -- Apply range fade to a single frame
--- frame.optionTable.rangeAlpha 수정으로 Blizzard의 내부 range check에 적용
--- Secret Value 읽기/비교 없음
+-- SetAlphaFromBoolean으로 secret boolean 분기 없이 처리 (12.0 정식 방법)
 local function applyRangeFade(frame)
-    if not frame or not frame.optionTable then return end
+    if not frame or not frame.displayedUnit then return end
+    if frame:IsForbidden() then return end
     local storage = RaidFrames:GetStorage()
     if not storage or not storage.Frame or not storage.Frame.RangeFade then return end
     local rangeFade = storage.Frame.RangeFade
     if not rangeFade.Enabled then
-        frame.optionTable.rangeAlpha = 1.0
-        frame:SetAlpha(1.0)  -- 즉시 시각 반영
+        frame:SetAlpha(1.0)
     else
-        frame.optionTable.rangeAlpha = rangeFade.MinAlpha or 0.55
+        local inRange = UnitInRange(frame.displayedUnit)
+        frame:SetAlphaFromBoolean(inRange, 1.0, rangeFade.MinAlpha or 0.55)
     end
 end
 
@@ -1097,22 +1098,14 @@ function Auras:Enable()
         self.Hooked = true
     end
 
-    -- Register UNIT_IN_RANGE_UPDATE to apply range fade when units move in/out of range
-    if not self.RangeFadeEventFrame then
-        self.RangeFadeEventFrame = CreateFrame("Frame")
-        self.RangeFadeEventFrame:RegisterEvent("UNIT_IN_RANGE_UPDATE")
-        self.RangeFadeEventFrame:SetScript("OnEvent", function(_, event)
+    -- CompactUnitFrame_UpdateCenterStatusIcon 훅으로 range 변경 시 반응
+    -- BetterBlizzFrames와 동일한 패턴: 이 함수가 range check 이후 호출됨
+    if not self.RangeFadeHooked then
+        hooksecurefunc("CompactUnitFrame_UpdateCenterStatusIcon", function(frame)
             if not isEnabled then return end
-            if CompactRaidFrameContainer then
-                CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
-                    if frame and frame.unit then applyRangeFade(frame) end
-                end)
-            end
-            for i = 1, 5 do
-                local frame = _G["CompactPartyFrameMember" .. i]
-                if frame then applyRangeFade(frame) end
-            end
+            applyRangeFade(frame)
         end)
+        self.RangeFadeHooked = true
     end
 
     -- Combat state tracking
