@@ -1017,6 +1017,7 @@ function Auras:RefreshAllFrames()
         CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
             if frame and frame.unit then
                 self:ApplySettings(frame)
+                CompactUnitFrame_UpdateRangeCheck(frame)
             end
         end)
     end
@@ -1026,6 +1027,7 @@ function Auras:RefreshAllFrames()
         local frame = _G["CompactPartyFrameMember" .. i]
         if frame then
             self:ApplySettings(frame)
+            CompactUnitFrame_UpdateRangeCheck(frame)
         end
     end
 
@@ -1034,6 +1036,7 @@ function Auras:RefreshAllFrames()
         local petFrame = _G["CompactPartyFrameMemberPet" .. i]
         if petFrame then
             self:ApplySettings(petFrame)
+            CompactUnitFrame_UpdateRangeCheck(petFrame)
         end
     end
 end
@@ -1076,6 +1079,23 @@ function Auras:Enable()
         end)
 
         self.Hooked = true
+    end
+
+    -- Hook CompactUnitFrame_UpdateRangeCheck to override range fade alpha
+    if not self.RangeFadeHooked then
+        hooksecurefunc("CompactUnitFrame_UpdateRangeCheck", function(frame)
+            if not isEnabled then return end
+            local storage = RaidFrames:GetStorage()
+            if not storage or not storage.Frame or not storage.Frame.RangeFade then return end
+            local rangeFade = storage.Frame.RangeFade
+            if not rangeFade.Enabled then
+                frame:SetAlpha(1.0)
+            elseif frame:GetAlpha() < (rangeFade.MinAlpha or 0.55) then
+                frame:SetAlpha(rangeFade.MinAlpha or 0.55)
+            end
+        end)
+
+        self.RangeFadeHooked = true
     end
 
     -- Combat state tracking
