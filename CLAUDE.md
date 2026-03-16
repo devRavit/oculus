@@ -6,6 +6,9 @@
 
 ## Checkpoint: 작업 전 필수 읽기
 
+> **⚠️ WoW API 사용 시 1순위 참조**: https://warcraft.wiki.gg/wiki/Secret_Values
+> 모든 기능 개발/수정 전 Secret Values 문서를 먼저 확인하고 시작할 것.
+
 모듈 관련 작업 시 **반드시** 해당 명세서를 먼저 읽을 것.
 
 | 작업 대상 | 명세서 경로 |
@@ -61,6 +64,97 @@ Button:SetText(L["Preview Mode"])
 
 - `Oculus/Localization.lua`: 메인 현지화 파일
 - enUS (기본값) + koKR 지원
+
+---
+
+## Secret Values (WoW 12.0 Midnight) — 필수 숙지
+
+> **⚠️ CRITICAL: 기능 개발 및 수정 시 1순위 참조 문서**
+> **공식 문서**: https://warcraft.wiki.gg/wiki/Secret_Values
+> 코드 작성 전 반드시 읽고, 시크릿 값 관련 패턴인지 확인할 것.
+
+**CRITICAL: 아래 API는 전투 중 tainted 코드에서 시크릿 값을 반환함. 잘못 사용 시 Lua 에러 발생.**
+
+### 시크릿 값을 반환하는 주요 API
+
+| API | 반환되는 시크릿 값 | 비고 |
+|-----|-------------------|------|
+| `UnitCastingInfo(unit)` | texture, startTime, endTime, name (비-플레이어 유닛) | 플레이어 시전은 non-secret |
+| `UnitChannelInfo(unit)` | 위와 동일 | |
+| `UnitHealth(unit)` | HP 수치 | |
+| `UnitHealthMax(unit)` | 최대 HP | |
+| `UnitPower(unit)` | 자원 수치 | |
+| `UnitInRange(unit)` | 시크릿 **불리언** | `if inRange` 불가 |
+| `UnitGUID(unit)` | 적 유닛 GUID (PvP/레이드) | |
+| CLEU spellID/destGUID | 시크릿 숫자 | CLEU 자체가 12.0에서 제거됨 |
+
+### 금지 연산 (시크릿 값에 절대 사용 금지)
+
+```lua
+-- ❌ 비교 연산
+if health > 50 then ...
+if not spellName then ...       -- nil 체크도 금지!
+if texture == nil then ...
+if inRange then ...              -- 시크릿 불리언 조건문 금지
+
+-- ❌ 산술 연산
+local remaining = endTime - GetTime() * 1000
+
+-- ❌ 길이 연산자
+local len = #secretString
+
+-- ❌ 테이블 키로 사용
+myTable[spellID] = true
+```
+
+### 허용 연산 (UI API에 전달)
+
+```lua
+-- ✅ UI API는 시크릿 값 허용
+icon:SetTexture(texture)
+bar:SetMinMaxValues(startTime, endTime)
+bar:SetValue(GetTime() * 1000)    -- GetTime()은 non-secret
+frame:SetAlpha(health)
+nameText:SetText(spellName)
+frame:SetAlphaFromBoolean(inRange, 1.0, 0.55)  -- UnitInRange 전용
+
+-- ✅ 변수/테이블 필드에 저장
+local saved = startTime
+castInfo.texture = texture
+
+-- ✅ string.format()
+local text = string.format("%s", spellName)
+```
+
+### 이벤트 기반 패턴 (nil 체크 우회)
+
+```lua
+-- ❌ 잘못된 패턴: UnitCastingInfo 반환값 nil 체크
+local name, _, texture = UnitCastingInfo(unit)
+if not name then return end  -- 시전 중이면 name이 시크릿 → 비교 불가!
+
+-- ✅ 올바른 패턴: 이벤트로 시전 상태 판단, 값은 UI API로만 사용
+-- UNIT_SPELLCAST_START 이벤트 = 시전 중임이 확정
+-- → nil 체크 없이 바로 UnitCastingInfo 호출 후 UI API에 전달
+local function onCastStart(unit)
+    local _, _, texture, startTime, endTime = UnitCastingInfo(unit)
+    icon:SetTexture(texture)                        -- 시크릿 OK (UI API)
+    bar:SetMinMaxValues(startTime, endTime)         -- 시크릿 OK (UI API)
+    bar:SetValue(GetTime() * 1000)                  -- non-secret
+end
+-- UNIT_SPELLCAST_STOP/SUCCEEDED/FAILED/INTERRUPTED → 시전 종료 처리
+```
+
+### pcall 활용 (시크릿 값 접근 에러 방어)
+
+```lua
+-- 시크릿 여부 불확실한 코드는 pcall로 감싸기
+pcall(function()
+    local _, _, texture, startTime, endTime = UnitCastingInfo(unit)
+    icon:SetTexture(texture)
+    bar:SetMinMaxValues(startTime, endTime)
+end)
+```
 
 ---
 
