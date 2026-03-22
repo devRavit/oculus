@@ -86,16 +86,47 @@ local function getRawStorage()
     return raidFrames.Storage and raidFrames.Storage.Auras
 end
 
--- Convert aura size percent to actual px based on frame healthBar height
--- GetHeight() can return a secret number → pcall로 비교 보호
-local function getActualAuraSize(frame, sizePercent)
-    local h = 24  -- safe fallback
-    if frame and frame.healthBar then
-        pcall(function()
-            local val = frame.healthBar:GetHeight()
-            if val > 0 then h = val end
-        end)
+-- 프레임별 healthBar 높이 캐시 (secret value 문제 방지)
+-- 안전한 시점(로드/편집모드 종료)에 측정 후 저장, UpdateAuras 중엔 캐시값만 사용
+-- 측정 성공 시 SavedVariables에도 기록 → 다음 로드 시 즉시 사용 가능
+
+local function cacheFrameHeight(frame)
+    if not frame or not frame.healthBar then return end
+    -- GetHeight()와 비교 모두 pcall 안에서 실행 (secret number 완전 차단)
+    pcall(function()
+        local val = frame.healthBar:GetHeight()
+        if val > 0 then
+            frame.OculusHealthBarHeight = val
+            if OculusRaidFramesStorage then
+                OculusRaidFramesStorage.CachedHealthBarHeight = val
+            end
+        end
+    end)
+end
+
+local function cacheAllFrameHeights()
+    -- 전투 중엔 스킵 (보호된 프레임에서 secret value 반환 가능)
+    if InCombatLockdown() then return end
+    if CompactRaidFrameContainer then
+        CompactRaidFrameContainer:ApplyToFrames("normal", cacheFrameHeight)
     end
+    for i = 1, 5 do
+        local f = _G["CompactPartyFrameMember" .. i]
+        if f then cacheFrameHeight(f) end
+    end
+    for i = 1, 5 do
+        local f = _G["CompactPartyFrameMemberPet" .. i]
+        if f then cacheFrameHeight(f) end
+    end
+end
+
+-- 캐싱된 높이 기준으로 아이콘 크기 계산 (UpdateAuras 중 GetHeight() 호출 없음)
+-- 우선순위: 프레임 캐시 → SavedVariables 캐시 → 기본값 24
+local function getActualAuraSize(frame, sizePercent)
+    local h = (frame and frame.OculusHealthBarHeight)
+           or (OculusRaidFramesStorage and OculusRaidFramesStorage.CachedHealthBarHeight)
+           or 24
+    if h <= 0 then h = 24 end
     return math.max(8, math.floor(h * ((sizePercent or 80) / 100)))
 end
 
@@ -943,6 +974,9 @@ function Auras:RefreshAllFrames()
     if EditModeManagerFrame and EditModeManagerFrame:IsEditModeActive() then
         return
     end
+
+    -- 안전한 시점에 프레임 높이 캐싱 (UpdateAuras 훅 밖에서 실행)
+    cacheAllFrameHeights()
 
     -- Refresh CompactRaidFrameContainer
     if CompactRaidFrameContainer then
