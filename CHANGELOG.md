@@ -5,6 +5,16 @@ All notable changes to Oculus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5] - 2026-03-22
+
+### Changed
+- **RaidFrames**: 해제 오버레이 숨김 설정을 Debuff 탭에서 Frame 탭으로 이동
+
+### Removed
+- **RaidFrames**: 디스펠 테두리 숨김(Hide Dispel Border), 디스펠 테두리 크기(Dispel Border Size) 설정 및 관련 코드 제거
+
+---
+
 ## [0.2.0] - 2026-01-25
 
 ### Added
