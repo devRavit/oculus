@@ -39,6 +39,7 @@
 |------|------|------|
 | 코드 스타일 | [`docs/CODE_STYLE.md`](docs/CODE_STYLE.md) | 네이밍, 포맷팅, 파일 구조, 리팩토링 체크리스트 |
 | 아키텍처 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | WoW 특화 규칙, 객체지향 설계, 설정 패턴 |
+| **WoW 패턴 규칙** | [`docs/WOW_PATTERNS.md`](docs/WOW_PATTERNS.md) | Secret value 캐싱, pcall 보호 범위, InCombatLockdown 가드 — **WoW API 작업 시 필수 참조** |
 
 ---
 
