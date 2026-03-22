@@ -61,12 +61,7 @@ local DEFAULTS = {
         Spacing = 0,
     },
     Debuff = {
-        Size = 24,
-        MaxCount = 6,
-        PerRow = 3,
-        Anchor = "BOTTOMLEFT",
-        UseCustomPosition = false,
-        Spacing = 0,
+        ShowTimer = true,
     },
     Timer = {
         Show = true,
@@ -509,29 +504,18 @@ local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, size, 
     end
 end
 
--- Pre-create borders for all buff/debuff frames (combat-safe)
+-- Pre-create borders for all buff frames (combat-safe)
 local function preCreateTimers(frame)
     if not frame then return end
 
     local config = buildConfig()
     local buffSize = config.Buff.Size or 20
-    local debuffSize = config.Debuff.Size or 24
     local showBuffTimer = config.Buff.ShowTimer
-    local showDebuffTimer = config.Debuff.ShowTimer
 
-    -- Pre-initialize buff frames
     if frame.buffFrames then
         for i, buff in ipairs(frame.buffFrames) do
             initializeTimer(buff, showBuffTimer)
             initializeBorder(buff, buffSize)
-        end
-    end
-
-    -- Pre-initialize debuff frames
-    if frame.debuffFrames then
-        for i, debuff in ipairs(frame.debuffFrames) do
-            initializeTimer(debuff, showDebuffTimer)
-            initializeBorder(debuff, debuffSize)
         end
     end
 end
@@ -733,76 +717,12 @@ function Auras:ApplySettings(frame)
         end
     end
 
-    -- Apply debuff settings - always reposition to prevent overlap
+    -- Apply debuff timer setting
     if frame.debuffFrames then
-        local debuffSize = configuration.Debuff.Size
-        local debuffsPerRow = configuration.Debuff.PerRow
-        local debuffAnchor = configuration.Debuff.Anchor
-        local useCustomPosition = configuration.Debuff.UseCustomPosition
-        local debuffSpacing = configuration.Debuff.Spacing
-        local maxDebuffs = configuration.Debuff.MaxCount or 6
-
-        -- Count visible debuffs for proper layout
-        local visibleCount = 0
-        for i, debuff in ipairs(frame.debuffFrames) do
+        local showDebuffTimer = configuration.Debuff.ShowTimer
+        for _, debuff in ipairs(frame.debuffFrames) do
             if debuff:IsShown() then
-                visibleCount = visibleCount + 1
-            end
-        end
-
-        local visibleIndex = 0
-        for i, debuff in ipairs(frame.debuffFrames) do
-            local shouldShow = debuff:IsShown() and visibleIndex < maxDebuffs
-
-            -- Always try to set size (use pcall for combat protection)
-            pcall(function()
-                debuff:SetSize(debuffSize, debuffSize)
-            end)
-
-            -- Hide debuffs exceeding MaxCount (only when not in combat)
-            if not inCombat then
-                if debuff:IsShown() and visibleIndex >= maxDebuffs then
-                    debuff:Hide()
-                end
-            end
-
-            -- Always reposition shown debuffs (works in combat)
-            if shouldShow then
-                local col = visibleIndex % debuffsPerRow
-                local row = 0  -- Force single row to keep debuffs inside healthBar
-                local xOffset, _ = self:CalculateAnchorOffset(
-                    debuffAnchor, col, row, debuffSize, debuffSpacing, debuffsPerRow
-                )
-
-                -- Fixed small yOffset to keep debuffs at bottom of healthBar
-                local yOffset = 0
-
-                debuff:ClearAllPoints()
-                -- Anchor to healthBar to keep debuffs inside frame boundary
-                debuff:SetPoint(debuffAnchor, frame.healthBar, debuffAnchor, xOffset, yOffset)
-
-                visibleIndex = visibleIndex + 1
-            end
-
-            if shouldShow then
-                -- Force apply timer setting (Blizzard can reset it)
-                local showDebuffTimer = configuration.Debuff.ShowTimer
                 initializeTimer(debuff, showDebuffTimer)
-
-                registerWithMasque(debuff)
-
-                -- Setup OnUpdate script for self-managed timer
-                if debuff.auraInstanceID then
-                    setupAuraOnUpdate(debuff, unit, debuff.auraInstanceID, configuration, debuffSize, showDebuffTimer)
-                end
-            else
-                -- Clear OnUpdate when hidden
-                if debuff.OculusOnUpdate then
-                    debuff:SetScript("OnUpdate", nil)
-                    debuff.OculusOnUpdate = nil
-                end
-                if debuff.OculusTimer then debuff.OculusTimer:Hide() end
-                if debuff.OculusExpiringBorder then debuff.OculusExpiringBorder:Hide() end
             end
         end
     end
@@ -867,17 +787,6 @@ function Auras:UpdateTimers()
             end
         end
 
-        if frame.debuffFrames and not configuration.Debuff.ShowTimer then
-            for _, debuff in ipairs(frame.debuffFrames) do
-                if debuff:IsShown() then
-                    local cooldown = debuff.cooldown or debuff.Cooldown
-                    if cooldown then
-                        cooldown:SetHideCountdownNumbers(true)
-                    end
-                end
-            end
-        end
-
         -- Update buff timers and borders
         if frame.buffFrames then
             for i, buff in ipairs(frame.buffFrames) do
@@ -934,38 +843,6 @@ function Auras:UpdateTimers()
             end
         end
 
-        -- Update debuff timers and borders
-        if frame.debuffFrames then
-            for i, debuff in ipairs(frame.debuffFrames) do
-                if debuff:IsShown() then
-                    -- Update border for tracked spells
-                    if debuff.auraInstanceID and debuff.OculusExpiringBorder then
-                        local success, remaining, duration, spellId = pcall(function()
-                            local aura = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, debuff.auraInstanceID)
-                            if aura and aura.expirationTime and aura.duration and aura.expirationTime > 0 and aura.duration > 0 then
-                                return aura.expirationTime - GetTime(), aura.duration, aura.spellId
-                            end
-                            return nil, nil, nil
-                        end)
-
-                        if success and remaining and remaining > 0 and duration and trackedSpells[spellId] then
-                            local remainingPercent = remaining / duration
-                            if remainingPercent < expiringThreshold then
-                                pcall(function()
-                                    debuff.OculusExpiringBorder:Show()
-                                    local pulse = 0.5 + 0.5 * math.sin(GetTime() * 10)
-                                    debuff.OculusExpiringBorder:SetAlpha(0.4 + pulse * 0.6)
-                                end)
-                            else
-                                debuff.OculusExpiringBorder:Hide()
-                            end
-                        else
-                            debuff.OculusExpiringBorder:Hide()
-                        end
-                    end
-                end
-            end
-        end
     end
 
     -- Update CompactRaidFrameContainer

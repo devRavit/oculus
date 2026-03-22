@@ -51,12 +51,6 @@ local DEFAULTS = {
             ShowTimer = true,
         },
         Debuff = {
-            Size = 24,
-            MaxCount = 6,
-            PerRow = 3,
-            Anchor = "BOTTOMLEFT",
-            UseCustomPosition = false,
-            Spacing = 0,
             ShowTimer = true,
         },
         Timer = {
