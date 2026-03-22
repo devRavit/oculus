@@ -1078,17 +1078,6 @@ function Auras:Enable()
             end
         end)
 
-        hooksecurefunc("CompactUnitFrame_UpdateDispellableDebuffs", function(frame)
-            if not isEnabled then return end
-            local frameSettings = getFrameSettings()
-            if not frameSettings or not frameSettings.HideDispelOverlay then return end
-            if frame.dispelDebuffFrames then
-                for _, dispelFrame in ipairs(frame.dispelDebuffFrames) do
-                    dispelFrame:Hide()
-                end
-            end
-        end)
-
         self.Hooked = true
     end
 
