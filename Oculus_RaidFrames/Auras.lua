@@ -965,6 +965,20 @@ function Auras:Enable()
         self.Hooked = true
     end
 
+    -- Edit Mode 종료 시 프레임 크기가 바뀌므로 RefreshAllFrames 호출
+    if EditModeManagerFrame and not self.EditModeHooked then
+        EditModeManagerFrame:HookScript("OnHide", function()
+            if isEnabled then
+                C_Timer.After(0.1, function()
+                    if isEnabled then
+                        Auras:RefreshAllFrames()
+                    end
+                end)
+            end
+        end)
+        self.EditModeHooked = true
+    end
+
     -- CompactUnitFrame_UpdateCenterStatusIcon 훅으로 range 변경 시 반응
     -- BetterBlizzFrames와 동일한 패턴: 이 함수가 range check 이후 호출됨
     if not self.RangeFadeHooked then
