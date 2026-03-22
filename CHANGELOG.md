@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **RaidFrames**: 해제 오버레이 숨김 설정을 Debuff 탭에서 Frame 탭으로 이동
+- **RaidFrames**: 해제 아이콘 숨기기 수정 — 잘못된 글로벌 참조 제거, `frame.dispelDebuffFrames` 배열 사용으로 교체
+- **RaidFrames**: Debuff 탭을 남은 시간 표시(Show Timer) 설정만 유지하도록 간소화
 
 ### Removed
 - **RaidFrames**: 디스펠 테두리 숨김(Hide Dispel Border), 디스펠 테두리 크기(Dispel Border Size) 설정 및 관련 코드 제거
+- **RaidFrames**: 디버프 아이콘 크기, 최대 개수, 행당 개수, 앵커, 간격 설정 및 관련 렌더링 코드 제거
 
 ---
 
