@@ -564,20 +564,16 @@ function Auras:ApplySettings(frame)
     local frameSettings = getFrameSettings()
     local inCombat = InCombatLockdown()
 
-    -- Hide dispel overlay if configured
+    -- Hide dispel overlay and icons if configured
     if frameSettings and frameSettings.HideDispelOverlay then
         if frame.DispelOverlay then
             frame.DispelOverlay:Hide()
             frame.DispelOverlay:SetAlpha(0)
         end
 
-        -- DispelDebuffIcon is a global frame (created dynamically when dispellable debuff appears)
-        local frameName = frame:GetName()
-        if frameName then
-            local dispelIcon = _G[frameName .. "DispelDebuffIcon"]
-            if dispelIcon then
-                dispelIcon:Hide()
-                dispelIcon:SetAlpha(0)
+        if frame.dispelDebuffFrames then
+            for _, dispelFrame in ipairs(frame.dispelDebuffFrames) do
+                dispelFrame:Hide()
             end
         end
     end
@@ -842,7 +838,7 @@ function Auras:UpdateTimers()
         if not frame or not frame.unit then return end
         local unit = frame.unit
 
-        -- Hide dispel overlay if configured (continuously enforce)
+        -- Hide dispel overlay and icons if configured (continuously enforce)
         local frameSettings = getFrameSettings()
         if frameSettings and frameSettings.HideDispelOverlay then
             if frame.DispelOverlay and frame.DispelOverlay:IsShown() then
@@ -850,20 +846,11 @@ function Auras:UpdateTimers()
                 frame.DispelOverlay:SetAlpha(0)
             end
 
-            -- DispelDebuffIcon is a global frame (may not exist until dispellable debuff appears)
-            local frameName = frame:GetName()
-            if frameName then
-                local dispelIcon = _G[frameName .. "DispelDebuffIcon"]
-                if dispelIcon and dispelIcon:IsShown() then
-                    dispelIcon:Hide()
-                    dispelIcon:SetAlpha(0)
-                end
-
-                -- Also check DispelDebuff1 (alternative name)
-                local dispelDebuff1 = _G[frameName .. "DispelDebuff1"]
-                if dispelDebuff1 and dispelDebuff1:IsShown() then
-                    dispelDebuff1:Hide()
-                    dispelDebuff1:SetAlpha(0)
+            if frame.dispelDebuffFrames then
+                for _, dispelFrame in ipairs(frame.dispelDebuffFrames) do
+                    if dispelFrame:IsShown() then
+                        dispelFrame:Hide()
+                    end
                 end
             end
         end
@@ -1087,8 +1074,18 @@ function Auras:Enable()
     if not self.Hooked then
         hooksecurefunc("CompactUnitFrame_UpdateAuras", function(frame)
             if isEnabled and frame and frame.unit then
-                -- Apply settings immediately (no timer delay)
                 Auras:ApplySettings(frame)
+            end
+        end)
+
+        hooksecurefunc("CompactUnitFrame_UpdateDispellableDebuffs", function(frame)
+            if not isEnabled then return end
+            local frameSettings = getFrameSettings()
+            if not frameSettings or not frameSettings.HideDispelOverlay then return end
+            if frame.dispelDebuffFrames then
+                for _, dispelFrame in ipairs(frame.dispelDebuffFrames) do
+                    dispelFrame:Hide()
+                end
             end
         end)
 
