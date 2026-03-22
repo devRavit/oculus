@@ -766,7 +766,7 @@ function Auras:ApplySettings(frame)
 
         for _, debuff in ipairs(frame.debuffFrames) do
             if debuff:IsShown() then
-                local isCc = debuff.auraInstanceID and ccAuraIDs[debuff.auraInstanceID]
+                local isCc = debuff.isTestCC or (debuff.auraInstanceID and ccAuraIDs[debuff.auraInstanceID])
                 local size = isCc and ccDebuffSize or debuffSize
                 pcall(function() debuff:SetSize(size, size) end)
                 initializeTimer(debuff, showDebuffTimer)
@@ -1179,21 +1179,24 @@ end
 
 -- Test aura data (icons and dispel types)
 local TEST_BUFFS = {
-    {icon = 136075, name = "Thorns"},              -- Green shield
-    {icon = 135987, name = "Power Word: Fortitude"}, -- Blue buff
-    {icon = 136090, name = "Arcane Intellect"},    -- Purple buff
-    {icon = 136112, name = "Battle Shout"},        -- Red buff
-    {icon = 237542, name = "Mark of the Wild"},    -- Green paw
-    {icon = 135923, name = "Blessing of Kings"},   -- Yellow crown
+    {icon = 136075, name = "Thorns"},
+    {icon = 135987, name = "Power Word: Fortitude"},
+    {icon = 136090, name = "Arcane Intellect"},
+    {icon = 136112, name = "Battle Shout"},
+    {icon = 237542, name = "Mark of the Wild"},
+    {icon = 135923, name = "Blessing of Kings"},
+    {icon = 136048, name = "Renew"},
+    {icon = 135936, name = "Shield"},
+    {icon = 136116, name = "Rejuvenation"},
 }
 
 local TEST_DEBUFFS = {
-    {icon = 136071, name = "Polymorph", dispelType = "Magic", color = {0.2, 0.6, 1}},      -- Blue
-    {icon = 136066, name = "Corruption", dispelType = "Disease", color = {0.6, 0.4, 0}},  -- Brown
-    {icon = 136016, name = "Deadly Poison", dispelType = "Poison", color = {0, 0.8, 0}},  -- Green
-    {icon = 136203, name = "Curse of Agony", dispelType = "Curse", color = {0.6, 0, 1}},  -- Purple
-    {icon = 136145, name = "Fear", dispelType = "Magic", color = {0.2, 0.6, 1}},          -- Blue
-    {icon = 136170, name = "Silence", dispelType = nil, color = {1, 0, 0}},               -- Red (no dispel)
+    {icon = 136071, name = "Polymorph",      dispelType = "Magic",   color = {0.2, 0.6, 1}, isCc = true},
+    {icon = 136066, name = "Corruption",     dispelType = "Disease", color = {0.6, 0.4, 0}},
+    {icon = 136016, name = "Deadly Poison",  dispelType = "Poison",  color = {0, 0.8, 0}},
+    {icon = 136203, name = "Curse of Agony", dispelType = "Curse",   color = {0.6, 0, 1}},
+    {icon = 136145, name = "Fear",           dispelType = "Magic",   color = {0.2, 0.6, 1}, isCc = true},
+    {icon = 136170, name = "Silence",        dispelType = nil,       color = {1, 0, 0},     isCc = true},
 }
 
 
@@ -1202,7 +1205,7 @@ local function createTestAuras(frame)
     if not frame or not frame.buffFrames or not frame.debuffFrames then return end
 
     local config = buildConfig()
-    local maxBuffs = math.min(6, config.Buff.MaxCount or 9)
+    local maxBuffs = config.Buff.MaxCount or 9
     local maxDebuffs = math.min(6, config.Debuff.MaxCount or 6)
 
     -- Create test buffs
@@ -1277,6 +1280,8 @@ local function createTestAuras(frame)
 
             -- Clear auraInstanceID to prevent tooltip errors
             debuff.auraInstanceID = nil
+            -- Mark CC test debuffs for CcSize preview
+            debuff.isTestCC = testDebuff.isCc or false
 
             -- Disable tooltip for test auras
             debuff:SetScript("OnEnter", nil)
@@ -1326,6 +1331,7 @@ local function clearTestAuras(frame)
             -- Clear test scripts and data
             debuff:SetScript("OnUpdate", nil)
             debuff.testExpirationTime = nil
+            debuff.isTestCC = nil
 
             -- Restore original Blizzard tooltip handlers
             if CompactUnitFrameDebuff_OnEnter then
