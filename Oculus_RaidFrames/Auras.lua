@@ -53,7 +53,7 @@ end
 -- Constants (must match RaidFrames.lua DEFAULTS.Auras structure)
 local DEFAULTS = {
     Buff = {
-        Size = 20,
+        Size = 80,  -- % of frame healthBar height
         MaxCount = 9,
         PerRow = 3,
         Anchor = "BOTTOMRIGHT",
@@ -82,6 +82,13 @@ local function getRawStorage()
     end
 
     return raidFrames.Storage and raidFrames.Storage.Auras
+end
+
+-- Convert buff size percent to actual px based on frame healthBar height
+local function getActualBuffSize(frame, sizePercent)
+    local h = frame and frame.healthBar and frame.healthBar:GetHeight() or 0
+    if h <= 0 then h = 24 end
+    return math.max(8, math.floor(h * ((sizePercent or 80) / 100)))
 end
 
 -- Get Frame settings from parent RaidFrames module
@@ -509,7 +516,7 @@ local function preCreateTimers(frame)
     if not frame then return end
 
     local config = buildConfig()
-    local buffSize = config.Buff.Size or 20
+    local buffSize = getActualBuffSize(frame, config.Buff.Size)
     local showBuffTimer = config.Buff.ShowTimer
 
     if frame.buffFrames then
@@ -647,7 +654,7 @@ function Auras:ApplySettings(frame)
 
     -- Apply buff settings - always reposition to prevent overlap
     if frame.buffFrames then
-        local buffSize = configuration.Buff.Size
+        local buffSize = getActualBuffSize(frame, configuration.Buff.Size)
         local buffsPerRow = configuration.Buff.PerRow
         local buffAnchor = configuration.Buff.Anchor
         local useCustomPosition = configuration.Buff.UseCustomPosition

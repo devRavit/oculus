@@ -61,7 +61,7 @@ function BuffTab:PopulateBuffSettings(parent, controls, helpers)
     createSectionHeader(parent, "Buff Icon Settings")
 
     -- Buff Size
-    local buffSizeSlider = createSliderRow(parent, "BuffSize", "Buff Icon Size", 10, 40, 1, true)
+    local buffSizeSlider = createSliderRow(parent, "BuffSize", "Buff Icon Size (%)", 10, 200, 5, true)
     controls.BuffSizeSlider = buffSizeSlider
     buffSizeSlider.userCallback = function(self, value)
         if isInitializing() then return end
