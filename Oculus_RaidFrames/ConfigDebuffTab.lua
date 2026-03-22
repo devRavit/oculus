@@ -6,7 +6,6 @@ local addonName, addon = ...
 
 -- Lua API Localization
 local ipairs = ipairs
-local math = math
 
 -- WoW API Localization
 local UIDropDownMenu_CreateInfo = UIDropDownMenu_CreateInfo
@@ -56,45 +55,6 @@ function DebuffTab:Populate(parent, controls, helpers)
         if storage then
             storage.Debuff = storage.Debuff or {}
             storage.Debuff.Size = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end
-
-    -- Hide Dispel Overlay
-    local hideDispelOverlayCheckbox = createCheckboxRow(parent, "HideDispelOverlay", "Hide Dispel Overlay", true)
-    controls.HideDispelOverlayCheckbox = hideDispelOverlayCheckbox
-    hideDispelOverlayCheckbox:SetScript("OnClick", function(self)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.HideDispelOverlay = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Hide Dispel Border
-    local hideDispelBorderCheckbox = createCheckboxRow(parent, "HideDispelBorder", "Hide Dispel Border", true)
-    controls.HideDispelBorderCheckbox = hideDispelBorderCheckbox
-    hideDispelBorderCheckbox:SetScript("OnClick", function(self)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.HideDispelBorder = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- Dispel Border Size
-    local dispelBorderSizeSlider = createSliderRow(parent, "DispelBorderSize", "Dispel Border Size", 0.5, 3.0, 0.1, true)
-    controls.DispelBorderSizeSlider = dispelBorderSizeSlider
-    dispelBorderSizeSlider.userCallback = function(self, value)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.DispelBorderSize = value
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end
