@@ -35,7 +35,7 @@ local DEFAULTS = {
         },
     },
     Buff = {
-        Size = 20,
+        Size = 80,
         MaxCount = 9,
         PerRow = 3,
         Anchor = "BOTTOMRIGHT",
@@ -43,7 +43,10 @@ local DEFAULTS = {
         Spacing = 0,
     },
     Debuff = {
+        Size = 80,
         ShowTimer = true,
+        CcEnabled = true,
+        CcSize = 120,
     },
     Timer = {
         Show = true,
@@ -543,8 +546,39 @@ local function refreshControls()
     end
 
     -- Debuff Settings
+    if controls.DebuffSizeSlider then
+        local slider = controls.DebuffSizeSlider
+        local value = configuration.Debuff.Size
+        slider:SetValue(value)
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(value)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(value)
+                end
+            end
+        end)
+    end
     if controls.DebuffShowTimerCheckbox then
         controls.DebuffShowTimerCheckbox:SetChecked(configuration.Debuff.ShowTimer)
+    end
+    if controls.CcOverlayEnabledCheckbox then
+        local ccEnabled = configuration.Debuff.CcEnabled
+        if ccEnabled == nil then ccEnabled = true end
+        controls.CcOverlayEnabledCheckbox:SetChecked(ccEnabled)
+    end
+    if controls.CcSizeSlider then
+        local slider = controls.CcSizeSlider
+        local value = configuration.Debuff.CcSize
+        slider:SetValue(value)
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(value)
+                if slider.updateFillFunc then
+                    slider.updateFillFunc(value)
+                end
+            end
+        end)
     end
 
     -- Timer Settings

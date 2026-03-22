@@ -51,7 +51,10 @@ local DEFAULTS = {
             ShowTimer = true,
         },
         Debuff = {
+            Size = 80,
             ShowTimer = true,
+            CcEnabled = true,
+            CcSize = 120,
         },
         Timer = {
             Show = true,
@@ -82,7 +85,7 @@ local DEFAULTS = {
 RaidFrames.Defaults = DEFAULTS
 
 -- Module Version
-RaidFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.3.0"
+RaidFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.4.0"
 
 
 -- Deep merge helper

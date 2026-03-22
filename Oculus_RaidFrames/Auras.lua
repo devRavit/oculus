@@ -17,6 +17,7 @@ local LibStub = LibStub
 local GetTime = GetTime
 local C_Timer = C_Timer
 local C_UnitAuras = C_UnitAuras
+local C_Spell = C_Spell
 local hooksecurefunc = hooksecurefunc
 local CompactRaidFrameContainer = CompactRaidFrameContainer
 local InCombatLockdown = InCombatLockdown
@@ -61,7 +62,10 @@ local DEFAULTS = {
         Spacing = 0,
     },
     Debuff = {
+        Size = 80,
         ShowTimer = true,
+        CcEnabled = true,
+        CcSize = 120,
     },
     Timer = {
         Show = true,
@@ -86,6 +90,13 @@ end
 
 -- Convert buff size percent to actual px based on frame healthBar height
 local function getActualBuffSize(frame, sizePercent)
+    local h = frame and frame.healthBar and frame.healthBar:GetHeight() or 0
+    if h <= 0 then h = 24 end
+    return math.max(8, math.floor(h * ((sizePercent or 80) / 100)))
+end
+
+-- Convert debuff size percent to actual px based on frame healthBar height
+local function getActualDebuffSize(frame, sizePercent)
     local h = frame and frame.healthBar and frame.healthBar:GetHeight() or 0
     if h <= 0 then h = 24 end
     return math.max(8, math.floor(h * ((sizePercent or 80) / 100)))
@@ -269,6 +280,111 @@ local function registerWithMasque(auraFrame)
     end
 end
 
+-- ============================================================
+-- CC Overlay
+-- ============================================================
+
+-- Find the highest-priority CC aura on a unit
+-- Returns auraData table or nil
+local function findCCAura(unit)
+    if not unit then return nil end
+    local i = 1
+    while true do
+        local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, "HARMFUL")
+        if not aura then break end
+        if aura.spellId and C_Spell.IsSpellCrowdControl(aura.spellId) then
+            return aura
+        end
+        i = i + 1
+    end
+    return nil
+end
+
+-- Create or return the CC overlay frame for a CompactUnitFrame
+local function getOrCreateCCOverlay(frame)
+    if frame.OculusCCOverlay then return frame.OculusCCOverlay end
+
+    local overlay = CreateFrame("Frame", nil, frame)
+    overlay:SetFrameLevel(frame:GetFrameLevel() + 5)
+    overlay:SetPoint("CENTER", frame, "CENTER", 0, 0)
+    overlay:SetSize(32, 32)
+    overlay:Hide()
+
+    -- Background (dark square)
+    overlay.bg = overlay:CreateTexture(nil, "BACKGROUND")
+    overlay.bg:SetAllPoints()
+    overlay.bg:SetColorTexture(0, 0, 0, 0.6)
+
+    -- Icon
+    overlay.icon = overlay:CreateTexture(nil, "ARTWORK")
+    overlay.icon:SetAllPoints()
+    overlay.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+
+    -- Cooldown frame (timer sweep + countdown)
+    overlay.cooldown = CreateFrame("Cooldown", nil, overlay, "CooldownFrameTemplate")
+    overlay.cooldown:SetAllPoints()
+    overlay.cooldown:SetReverse(false)
+    overlay.cooldown:SetHideCountdownNumbers(false)
+
+    -- Border glow texture
+    overlay.border = overlay:CreateTexture(nil, "OVERLAY")
+    overlay.border:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
+    overlay.border:SetBlendMode("ADD")
+    overlay.border:SetAlpha(0.8)
+    overlay.border:SetPoint("CENTER", overlay, "CENTER", 0, 0)
+    overlay.border:SetSize(48, 48)
+    overlay.border:SetVertexColor(0.6, 0, 1)  -- Purple for CC
+
+    frame.OculusCCOverlay = overlay
+    return overlay
+end
+
+-- Update the CC overlay for a frame
+local function updateCCOverlay(frame, unit, config)
+    if not config.Debuff.CcEnabled then
+        if frame.OculusCCOverlay then
+            frame.OculusCCOverlay:Hide()
+        end
+        return
+    end
+
+    local ccAura = findCCAura(unit)
+    local overlay = getOrCreateCCOverlay(frame)
+
+    if not ccAura then
+        overlay:Hide()
+        return
+    end
+
+    local ccSize = getActualDebuffSize(frame, config.Debuff.CcSize)
+    overlay:SetSize(ccSize, ccSize)
+
+    -- Position at center-top of the frame
+    overlay:ClearAllPoints()
+    overlay:SetPoint("CENTER", frame, "CENTER", 0, 0)
+
+    -- Set icon
+    overlay.icon:SetTexture(ccAura.icon)
+
+    -- Set border size proportionally
+    overlay.border:SetSize(ccSize * 1.5, ccSize * 1.5)
+
+    -- Start cooldown sweep if duration info available
+    if ccAura.duration and ccAura.duration > 0 and ccAura.expirationTime and ccAura.expirationTime > 0 then
+        local remaining = ccAura.expirationTime - GetTime()
+        if remaining > 0 then
+            overlay.cooldown:SetCooldown(ccAura.expirationTime - ccAura.duration, ccAura.duration)
+        else
+            overlay.cooldown:Clear()
+        end
+    else
+        overlay.cooldown:Clear()
+    end
+
+    overlay:Show()
+end
+
+-- ============================================================
 -- Initialize expiring border for an aura frame (combat-safe with pcall)
 local borderCreationCount = 0
 local borderFailCount = 0
@@ -724,15 +840,20 @@ function Auras:ApplySettings(frame)
         end
     end
 
-    -- Apply debuff timer setting
+    -- Apply debuff size and timer setting
     if frame.debuffFrames then
+        local debuffSize = getActualDebuffSize(frame, configuration.Debuff.Size)
         local showDebuffTimer = configuration.Debuff.ShowTimer
         for _, debuff in ipairs(frame.debuffFrames) do
             if debuff:IsShown() then
+                pcall(function() debuff:SetSize(debuffSize, debuffSize) end)
                 initializeTimer(debuff, showDebuffTimer)
             end
         end
     end
+
+    -- Update CC overlay
+    updateCCOverlay(frame, unit, configuration)
 end
 
 -- Update timers and borders for all aura frames (called by ticker)

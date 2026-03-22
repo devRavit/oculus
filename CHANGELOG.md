@@ -5,6 +5,16 @@ All notable changes to Oculus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-03-22
+
+### Added
+- **RaidFrames**: 디버프 아이콘 크기 설정 — 프레임 높이 기준 % 슬라이더 (10~200%, 기본값 80%)
+- **RaidFrames**: CC 오버레이 기능 — CC 디버프 발생 시 프레임 위에 별도 아이콘 표시 (minicc 방식 모방)
+- **RaidFrames**: CC 아이콘 크기 설정 — 프레임 높이 기준 % 슬라이더 (10~200%, 기본값 120%)
+- **RaidFrames**: CC 오버레이 활성화/비활성화 체크박스
+
+---
+
 ## [0.3.0] - 2026-03-22
 
 ### Changed
