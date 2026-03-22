@@ -43,12 +43,7 @@ local DEFAULTS = {
         Spacing = 0,
     },
     Debuff = {
-        Size = 24,
-        MaxCount = 6,
-        PerRow = 3,
-        Anchor = "BOTTOMLEFT",
-        UseCustomPosition = false,
-        Spacing = 0,
+        ShowTimer = true,
     },
     Timer = {
         Show = true,
@@ -548,56 +543,8 @@ local function refreshControls()
     end
 
     -- Debuff Settings
-    if controls.MaxDebuffsSlider then
-        local slider = controls.MaxDebuffsSlider
-        slider:SetValue(configuration.Debuff.MaxCount)
-        C_Timer.After(0.05, function()
-            if slider:GetWidth() > 0 then
-                slider:SetValue(configuration.Debuff.MaxCount)
-                if slider.updateFillFunc then
-                    slider.updateFillFunc(configuration.Debuff.MaxCount)
-                end
-            end
-        end)
-    end
-
-    if controls.DebuffSizeSlider then
-        local slider = controls.DebuffSizeSlider
-        slider:SetValue(configuration.Debuff.Size)
-        C_Timer.After(0.05, function()
-            if slider.updateFillFunc and slider:GetWidth() > 0 then
-                slider.updateFillFunc(configuration.Debuff.Size)
-            end
-        end)
-    end
     if controls.DebuffShowTimerCheckbox then
         controls.DebuffShowTimerCheckbox:SetChecked(configuration.Debuff.ShowTimer)
-    end
-    if controls.DebuffsPerRowSlider then
-        local slider = controls.DebuffsPerRowSlider
-        slider:SetValue(configuration.Debuff.PerRow)
-        C_Timer.After(0.05, function()
-            if slider.updateFillFunc and slider:GetWidth() > 0 then
-                slider.updateFillFunc(configuration.Debuff.PerRow)
-            end
-        end)
-    end
-    if controls.DebuffAnchorDropdown then
-        UIDropDownMenu_SetText(controls.DebuffAnchorDropdown, L[configuration.Debuff.Anchor])
-    end
-    if controls.DebuffSpacingSlider then
-        local slider = controls.DebuffSpacingSlider
-        local value = configuration.Debuff.Spacing
-        slider:SetValue(value)
-        -- Force thumb position update
-        C_Timer.After(0.05, function()
-            if slider:GetWidth() > 0 then
-                slider:SetValue(value)
-                if slider.updateFillFunc then
-                    slider.updateFillFunc(value)
-                end
-            end
-        end)
     end
 
     -- Timer Settings
