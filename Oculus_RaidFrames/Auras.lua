@@ -86,18 +86,25 @@ local function getRawStorage()
     return raidFrames.Storage and raidFrames.Storage.Auras
 end
 
--- Convert buff size percent to actual px based on frame healthBar height
-local function getActualBuffSize(frame, sizePercent)
-    local h = frame and frame.healthBar and frame.healthBar:GetHeight() or 0
-    if h <= 0 then h = 24 end
+-- Convert aura size percent to actual px based on frame healthBar height
+-- GetHeight() can return a secret number → pcall로 비교 보호
+local function getActualAuraSize(frame, sizePercent)
+    local h = 24  -- safe fallback
+    if frame and frame.healthBar then
+        pcall(function()
+            local val = frame.healthBar:GetHeight()
+            if val > 0 then h = val end
+        end)
+    end
     return math.max(8, math.floor(h * ((sizePercent or 80) / 100)))
 end
 
--- Convert debuff size percent to actual px based on frame healthBar height
+local function getActualBuffSize(frame, sizePercent)
+    return getActualAuraSize(frame, sizePercent)
+end
+
 local function getActualDebuffSize(frame, sizePercent)
-    local h = frame and frame.healthBar and frame.healthBar:GetHeight() or 0
-    if h <= 0 then h = 24 end
-    return math.max(8, math.floor(h * ((sizePercent or 80) / 100)))
+    return getActualAuraSize(frame, sizePercent)
 end
 
 -- Get Frame settings from parent RaidFrames module
