@@ -79,6 +79,19 @@ function FrameTab:Populate(parent, controls, helpers)
         end
     end)
 
+    -- Hide Dispel Overlay
+    local hideDispelOverlayCheckbox = createCheckboxRow(parent, "HideDispelOverlay", "Hide Dispel Overlay", true)
+    controls.HideDispelOverlayCheckbox = hideDispelOverlayCheckbox
+    hideDispelOverlayCheckbox:SetScript("OnClick", function(self)
+        if isInitializing() then return end
+        local storage = getFullStorage()
+        if storage then
+            storage.Frame = storage.Frame or {}
+            storage.Frame.HideDispelOverlay = self:GetChecked()
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end)
+
     -- ============================================
     -- Range Settings
     -- ============================================

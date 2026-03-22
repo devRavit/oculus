@@ -67,7 +67,6 @@ local DEFAULTS = {
         Anchor = "BOTTOMLEFT",
         UseCustomPosition = false,
         Spacing = 0,
-        HideDispelOverlay = false,
     },
     Timer = {
         Show = true,
@@ -127,6 +126,12 @@ local function getFrameSettings()
         settings.HidePartyTitle = false
     else
         settings.HidePartyTitle = storage.Frame.HidePartyTitle
+    end
+
+    if storage.Frame.HideDispelOverlay == nil then
+        settings.HideDispelOverlay = false
+    else
+        settings.HideDispelOverlay = storage.Frame.HideDispelOverlay
     end
 
     return settings
@@ -560,7 +565,7 @@ function Auras:ApplySettings(frame)
     local inCombat = InCombatLockdown()
 
     -- Hide dispel overlay if configured
-    if configuration.Debuff.HideDispelOverlay then
+    if frameSettings and frameSettings.HideDispelOverlay then
         if frame.DispelOverlay then
             frame.DispelOverlay:Hide()
             frame.DispelOverlay:SetAlpha(0)
@@ -780,17 +785,6 @@ function Auras:ApplySettings(frame)
                 -- Anchor to healthBar to keep debuffs inside frame boundary
                 debuff:SetPoint(debuffAnchor, frame.healthBar, debuffAnchor, xOffset, yOffset)
 
-                -- Enhance dispel type border visibility (if not hidden)
-                if not configuration.Debuff.HideDispelBorder and debuff.border then
-                    pcall(function()
-                        local sizeMultiplier = configuration.Debuff.DispelBorderSize or 1.0
-                        debuff.border:ClearAllPoints()
-                        debuff.border:SetPoint("CENTER", debuff, "CENTER", 0, 0)
-                        debuff.border:SetSize(debuffSize * sizeMultiplier, debuffSize * sizeMultiplier)
-                        debuff.border:SetAlpha(1.0)
-                    end)
-                end
-
                 visibleIndex = visibleIndex + 1
             end
 
@@ -849,7 +843,8 @@ function Auras:UpdateTimers()
         local unit = frame.unit
 
         -- Hide dispel overlay if configured (continuously enforce)
-        if configuration.Debuff.HideDispelOverlay then
+        local frameSettings = getFrameSettings()
+        if frameSettings and frameSettings.HideDispelOverlay then
             if frame.DispelOverlay and frame.DispelOverlay:IsShown() then
                 frame.DispelOverlay:Hide()
                 frame.DispelOverlay:SetAlpha(0)

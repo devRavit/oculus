@@ -28,6 +28,7 @@ local DEFAULTS = {
         HideName = false,
         HideAggroBorder = false,
         HidePartyTitle = false,
+        HideDispelOverlay = false,
         RangeFade = {
             Enabled = true,
             MinAlpha = 0.55,
@@ -48,7 +49,6 @@ local DEFAULTS = {
         Anchor = "BOTTOMLEFT",
         UseCustomPosition = false,
         Spacing = 0,
-        HideDispelOverlay = false,
     },
     Timer = {
         Show = true,
@@ -467,6 +467,9 @@ local function refreshControls()
     if controls.HidePartyTitleCheckbox then
         controls.HidePartyTitleCheckbox:SetChecked(configuration.Frame.HidePartyTitle)
     end
+    if controls.HideDispelOverlayCheckbox then
+        controls.HideDispelOverlayCheckbox:SetChecked(configuration.Frame.HideDispelOverlay)
+    end
     if controls.RangeFadeCheckbox then
         local rangeFade = configuration.Frame.RangeFade or DEFAULTS.Frame.RangeFade
         local enabled = rangeFade.Enabled ~= false
@@ -569,22 +572,6 @@ local function refreshControls()
     end
     if controls.DebuffShowTimerCheckbox then
         controls.DebuffShowTimerCheckbox:SetChecked(configuration.Debuff.ShowTimer)
-    end
-    if controls.HideDispelOverlayCheckbox then
-        controls.HideDispelOverlayCheckbox:SetChecked(configuration.Debuff.HideDispelOverlay)
-    end
-    if controls.HideDispelBorderCheckbox then
-        controls.HideDispelBorderCheckbox:SetChecked(configuration.Debuff.HideDispelBorder)
-    end
-    if controls.DispelBorderSizeSlider then
-        local slider = controls.DispelBorderSizeSlider
-        local value = configuration.Debuff.DispelBorderSize or 1.0
-        slider:SetValue(value)
-        C_Timer.After(0.05, function()
-            if slider.updateFillFunc and slider:GetWidth() > 0 then
-                slider.updateFillFunc(value)
-            end
-        end)
     end
     if controls.DebuffsPerRowSlider then
         local slider = controls.DebuffsPerRowSlider
