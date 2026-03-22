@@ -64,7 +64,6 @@ local DEFAULTS = {
     Debuff = {
         Size = 80,
         ShowTimer = true,
-        CcEnabled = true,
         CcSize = 120,
     },
     Timer = {
@@ -288,16 +287,8 @@ end
 -- Returns auraData table or nil
 local function findCCAura(unit)
     if not unit then return nil end
-    local i = 1
-    while true do
-        local aura = C_UnitAuras.GetAuraDataByIndex(unit, i, "HARMFUL")
-        if not aura then break end
-        if aura.spellId and C_Spell.IsSpellCrowdControl(aura.spellId) then
-            return aura
-        end
-        i = i + 1
-    end
-    return nil
+    -- "HARMFUL|CROWD_CONTROL" 필터로 CC 오라만 직접 스캔
+    return C_UnitAuras.GetAuraDataByIndex(unit, 1, "HARMFUL|CROWD_CONTROL")
 end
 
 -- Create or return the CC overlay frame for a CompactUnitFrame
@@ -341,13 +332,6 @@ end
 
 -- Update the CC overlay for a frame
 local function updateCCOverlay(frame, unit, config)
-    if not config.Debuff.CcEnabled then
-        if frame.OculusCCOverlay then
-            frame.OculusCCOverlay:Hide()
-        end
-        return
-    end
-
     local ccAura = findCCAura(unit)
     local overlay = getOrCreateCCOverlay(frame)
 

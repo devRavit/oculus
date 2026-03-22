@@ -45,7 +45,6 @@ local DEFAULTS = {
     Debuff = {
         Size = 80,
         ShowTimer = true,
-        CcEnabled = true,
         CcSize = 120,
     },
     Timer = {
@@ -561,11 +560,6 @@ local function refreshControls()
     end
     if controls.DebuffShowTimerCheckbox then
         controls.DebuffShowTimerCheckbox:SetChecked(configuration.Debuff.ShowTimer)
-    end
-    if controls.CcOverlayEnabledCheckbox then
-        local ccEnabled = configuration.Debuff.CcEnabled
-        if ccEnabled == nil then ccEnabled = true end
-        controls.CcOverlayEnabledCheckbox:SetChecked(ccEnabled)
     end
     if controls.CcSizeSlider then
         local slider = controls.CcSizeSlider

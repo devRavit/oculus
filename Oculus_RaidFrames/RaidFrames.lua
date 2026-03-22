@@ -53,7 +53,6 @@ local DEFAULTS = {
         Debuff = {
             Size = 80,
             ShowTimer = true,
-            CcEnabled = true,
             CcSize = 120,
         },
         Timer = {

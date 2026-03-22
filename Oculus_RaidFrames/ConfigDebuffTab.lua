@@ -39,6 +39,19 @@ function DebuffTab:Populate(parent, controls, helpers)
         end
     end
 
+    -- CC Debuff Icon Size
+    local ccSizeSlider = createSliderRow(parent, "CcSize", "CC Debuff Icon Size (%)", 10, 200, 5, true)
+    controls.CcSizeSlider = ccSizeSlider
+    ccSizeSlider.userCallback = function(self, value)
+        if isInitializing() then return end
+        local storage = getStorage()
+        if storage then
+            storage.Debuff = storage.Debuff or {}
+            storage.Debuff.CcSize = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end
+
     -- Show Timer
     local showTimerCheckbox = createCheckboxRow(parent, "DebuffShowTimer", "Show Duration Timer", true)
     controls.DebuffShowTimerCheckbox = showTimerCheckbox
@@ -51,35 +64,4 @@ function DebuffTab:Populate(parent, controls, helpers)
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
     end)
-
-    -- ============================================
-    -- CC Overlay Settings
-    -- ============================================
-    createSectionHeader(parent, "CC Overlay")
-
-    -- CC Overlay Enabled
-    local ccEnabledCheckbox = createCheckboxRow(parent, "CcOverlayEnabled", "Show CC Overlay", true)
-    controls.CcOverlayEnabledCheckbox = ccEnabledCheckbox
-    ccEnabledCheckbox:SetScript("OnClick", function(self)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.CcEnabled = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
-    -- CC Icon Size
-    local ccSizeSlider = createSliderRow(parent, "CcSize", "CC Icon Size (%)", 10, 200, 5, true)
-    controls.CcSizeSlider = ccSizeSlider
-    ccSizeSlider.userCallback = function(self, value)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Debuff = storage.Debuff or {}
-            storage.Debuff.CcSize = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end
 end
