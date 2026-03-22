@@ -82,7 +82,7 @@ local DEFAULTS = {
 RaidFrames.Defaults = DEFAULTS
 
 -- Module Version
-RaidFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.0.0"
+RaidFrames.Version = C_AddOns.GetAddOnMetadata(addonName, "Version") or "0.3.0"
 
 
 -- Deep merge helper

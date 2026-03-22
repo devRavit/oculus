@@ -5,6 +5,17 @@ All notable changes to Oculus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-22
+
+### Changed
+- **RaidFrames**: 버프 아이콘 크기 단위를 고정 px에서 프레임 높이 기준 %(퍼센트)로 변경
+- **RaidFrames**: 버프 아이콘 크기 슬라이더 범위 10~200(%), 기본값 80%
+
+### Fixed
+- **RaidFrames**: 편집모드 종료 시 변경된 프레임 크기 기준으로 버프 아이콘 크기 재적용
+
+---
+
 ## [0.2.5] - 2026-03-22
 
 ### Changed
