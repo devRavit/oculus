@@ -5,6 +5,23 @@ All notable changes to Oculus will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-26
+
+### Added
+- **RaidFrames**: 타이머 폰트 크기 슬라이더 추가 (Timer Settings)
+- **RaidFrames**: 만료 경고 테두리 크기 슬라이더 추가 — 아이콘 주변 glow 크기 조절 (Timer Settings)
+
+### Changed
+- **RaidFrames**: 버프 아이콘 크기 설정 제거 — 고정값(20px)으로 변경
+- **RaidFrames**: 버프 다중 행 표시 수정 — PerRow 설정에 따라 행이 올바르게 쌓이도록 개선
+- **RaidFrames**: 만료 경고 테두리를 padding 기반으로 변경 — 아이콘 밖으로 glow가 표시되도록 수정
+- **RaidFrames**: OnUpdate에서 폰트 크기 변경 시에만 SetFont 호출하도록 최적화
+
+### Removed
+- **RaidFrames**: 버프 아이콘 크기(Buff Icon Size) 설정 및 관련 코드 제거
+
+---
+
 ## [0.2.5] - 2026-03-22
 
 ### Changed
