@@ -954,6 +954,14 @@ function Auras:Enable()
             end
         end)
 
+        -- Hook CompactUnitFrame_SetUnit to catch frame reinitializations
+        -- (e.g. stealth/feign death combat drop causes full frame reset via this path)
+        hooksecurefunc("CompactUnitFrame_SetUnit", function(frame)
+            if isEnabled and frame and frame.unit then
+                Auras:ApplySettings(frame)
+            end
+        end)
+
         self.Hooked = true
     end
 
@@ -972,6 +980,7 @@ function Auras:Enable()
         self.CombatEventFrame = CreateFrame("Frame")
         self.CombatEventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
         self.CombatEventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        self.CombatEventFrame:RegisterEvent("UPDATE_STEALTH")
         self.CombatEventFrame:SetScript("OnEvent", function(_, event)
             if event == "PLAYER_REGEN_DISABLED" then
                 -- Entering combat
@@ -998,6 +1007,15 @@ function Auras:Enable()
                                 end
                             end
                             preCreateAllBorders()
+                            Auras:RefreshAllFrames()
+                        end
+                    end)
+                end
+            elseif event == "UPDATE_STEALTH" then
+                -- Stealth state change can trigger full frame reinit outside the UpdateAuras path
+                if isEnabled then
+                    C_Timer.After(0.15, function()
+                        if isEnabled then
                             Auras:RefreshAllFrames()
                         end
                     end)
