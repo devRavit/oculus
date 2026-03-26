@@ -229,14 +229,6 @@ local function initializeTimer(auraFrame, showTimer)
     auraFrame.OculusTimerInitialized = true
 end
 
--- Update timer font size based on aura size
-local function updateTimerFontSize(auraFrame, size)
-    if auraFrame.OculusTimer and size then
-        -- Use provided size instead of GetWidth() to avoid secret value errors
-        local fontSize = math.max(8, math.floor(size * 0.45))
-        auraFrame.OculusTimer:SetFont(STANDARD_TEXT_FONT, fontSize, "OUTLINE")
-    end
-end
 
 -- Register aura frame with Masque
 local function registerWithMasque(auraFrame)
@@ -266,19 +258,26 @@ end
 local borderCreationCount = 0
 local borderFailCount = 0
 
-local function initializeBorder(auraFrame, size)
+local function initializeBorder(auraFrame, padding)
     if not auraFrame then return end
-    if auraFrame.OculusExpiringBorder then return end
+    local pad = padding or DEFAULT_GLOW_PADDING
+
+    -- If already created, just update points
+    if auraFrame.OculusExpiringBorder then
+        auraFrame.OculusExpiringBorder:ClearAllPoints()
+        auraFrame.OculusExpiringBorder:SetPoint("TOPLEFT", auraFrame, "TOPLEFT", -pad, pad)
+        auraFrame.OculusExpiringBorder:SetPoint("BOTTOMRIGHT", auraFrame, "BOTTOMRIGHT", pad, -pad)
+        return
+    end
 
     -- Try to create border (works even during combat with pcall)
-    local borderSize = (size or 20) * 2.2
     local success, border = pcall(function()
         local b = auraFrame:CreateTexture(nil, "OVERLAY")
         b:SetDrawLayer("OVERLAY", 7)
         b:SetTexture("Interface\\Buttons\\UI-ActionButton-Border")
         b:SetBlendMode("ADD")
-        b:SetPoint("CENTER", auraFrame, "CENTER", 0, 0)
-        b:SetSize(borderSize, borderSize)
+        b:SetPoint("TOPLEFT", auraFrame, "TOPLEFT", -pad, pad)
+        b:SetPoint("BOTTOMRIGHT", auraFrame, "BOTTOMRIGHT", pad, -pad)
         b:SetVertexColor(1, 1, 0)  -- Yellow
         b:Hide()
         return b
@@ -288,8 +287,8 @@ local function initializeBorder(auraFrame, size)
         auraFrame.OculusExpiringBorder = border
         borderCreationCount = borderCreationCount + 1
         if DEBUG_TIMER and borderCreationCount <= 3 then
-            logDebug(string.format("Border created #%d, size=%.1f, inCombat=%s",
-                borderCreationCount, borderSize, tostring(InCombatLockdown())))
+            logDebug(string.format("Border created #%d, inCombat=%s",
+                borderCreationCount, tostring(InCombatLockdown())))
         end
     else
         borderFailCount = borderFailCount + 1
@@ -341,6 +340,8 @@ end
 -- Debug flag (set to true to enable debug output)
 -- Debug mode: set to false to disable debug logging
 local DEBUG_TIMER = false
+local BUFF_SIZE = 20
+local DEFAULT_GLOW_PADDING = 10
 
 -- Debug log system (saves to file via SavedVariables)
 local MAX_LOG_ENTRIES = 500
@@ -411,20 +412,20 @@ local function clearDebugLog()
 end
 
 -- Setup OnUpdate script for aura frame to manage expiring border
-local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, size, showTimer)
+local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, showTimer)
     if not auraFrame or not unit or not auraInstanceID then return end
 
     -- Initialize timer (Blizzard's built-in)
     initializeTimer(auraFrame, showTimer)
 
     -- Initialize border (always try, pcall makes it safe)
-    initializeBorder(auraFrame, size)
+    local glowPadding = config and config.Timer and config.Timer.GlowPadding or DEFAULT_GLOW_PADDING
+    initializeBorder(auraFrame, glowPadding)
 
     -- Store data for OnUpdate (always update stored data)
     auraFrame.OculusUnit = unit
     auraFrame.OculusAuraInstanceID = auraInstanceID
     auraFrame.OculusConfig = config
-    auraFrame.OculusSize = size
 
     -- Setup OnUpdate script ONLY ONCE (SetScript is protected during combat)
     -- Data above is always updated, so same script will use new auraInstanceID
@@ -435,30 +436,26 @@ local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, size, 
             if not self:IsShown() then return end
 
             local cfg = self.OculusConfig or buildConfig()
-            local showTimer = cfg.Timer.Show
+            local showTimer = cfg.Buff.ShowTimer
             local expiringThreshold = cfg.Timer.ExpiringThreshold
 
             -- Update Blizzard timer visibility and style
             if self.cooldown then
                 if showTimer then
                     self.cooldown:SetHideCountdownNumbers(false)
-                    if self.OculusCooldownText and self.OculusSize then
-                        local fontSize = math.max(9, math.floor(self.OculusSize * 0.55))
-                        pcall(function()
-                            self.OculusCooldownText:SetFont(STANDARD_TEXT_FONT, fontSize, "OUTLINE")
-                            self.OculusCooldownText:SetTextColor(1, 1, 0)
-                        end)
+                    if self.OculusCooldownText then
+                        local fontSize = cfg.Timer.FontSize or 10
+                        if fontSize ~= self.OculusFontSize then
+                            self.OculusFontSize = fontSize
+                            pcall(function()
+                                self.OculusCooldownText:SetFont(STANDARD_TEXT_FONT, fontSize, "OUTLINE")
+                                self.OculusCooldownText:SetTextColor(1, 1, 0)
+                            end)
+                        end
                     end
                 else
                     self.cooldown:SetHideCountdownNumbers(true)
                 end
-            end
-
-            -- Update border size if needed
-            if self.OculusExpiringBorder and self.OculusSize then
-                pcall(function()
-                    self.OculusExpiringBorder:SetSize(self.OculusSize * 2.2, self.OculusSize * 2.2)
-                end)
             end
 
             -- Get aura data and update expiring border (protected from secret values)
@@ -509,13 +506,11 @@ local function preCreateTimers(frame)
     if not frame then return end
 
     local config = buildConfig()
-    local buffSize = config.Buff.Size or 20
     local showBuffTimer = config.Buff.ShowTimer
 
     if frame.buffFrames then
         for i, buff in ipairs(frame.buffFrames) do
             initializeTimer(buff, showBuffTimer)
-            initializeBorder(buff, buffSize)
         end
     end
 end
@@ -647,7 +642,6 @@ function Auras:ApplySettings(frame)
 
     -- Apply buff settings - always reposition to prevent overlap
     if frame.buffFrames then
-        local buffSize = configuration.Buff.Size
         local buffsPerRow = configuration.Buff.PerRow
         local buffAnchor = configuration.Buff.Anchor
         local useCustomPosition = configuration.Buff.UseCustomPosition
@@ -666,9 +660,9 @@ function Auras:ApplySettings(frame)
         for i, buff in ipairs(frame.buffFrames) do
             local shouldShow = buff:IsShown() and visibleIndex < maxBuffs
 
-            -- Always try to set size (use pcall for combat protection)
+            -- Set fixed buff icon size
             pcall(function()
-                buff:SetSize(buffSize, buffSize)
+                buff:SetSize(BUFF_SIZE, BUFF_SIZE)
             end)
 
             -- Hide buffs exceeding MaxCount (only when not in combat)
@@ -681,13 +675,10 @@ function Auras:ApplySettings(frame)
             -- Always reposition shown buffs (works in combat)
             if shouldShow then
                 local col = visibleIndex % buffsPerRow
-                local row = 0  -- Force single row to keep buffs inside healthBar
-                local xOffset, _ = self:CalculateAnchorOffset(
-                    buffAnchor, col, row, buffSize, buffSpacing, buffsPerRow
+                local row = math.floor(visibleIndex / buffsPerRow)
+                local xOffset, yOffset = self:CalculateAnchorOffset(
+                    buffAnchor, col, row, BUFF_SIZE, buffSpacing, buffsPerRow
                 )
-
-                -- Fixed small yOffset to keep buffs at bottom of healthBar
-                local yOffset = 0
 
                 buff:ClearAllPoints()
                 -- Anchor to healthBar to keep buffs inside frame boundary
@@ -703,14 +694,18 @@ function Auras:ApplySettings(frame)
                 registerWithMasque(buff)
                 -- Setup OnUpdate script for self-managed timer
                 if buff.auraInstanceID then
-                    setupAuraOnUpdate(buff, unit, buff.auraInstanceID, configuration, buffSize, showBuffTimer)
+                    setupAuraOnUpdate(buff, unit, buff.auraInstanceID, configuration, showBuffTimer)
                 end
             else
-                -- Clear OnUpdate when hidden
+                -- Clear OnUpdate and stale data when hidden
                 if buff.OculusOnUpdate then
                     buff:SetScript("OnUpdate", nil)
                     buff.OculusOnUpdate = nil
                 end
+                buff.OculusUnit = nil
+                buff.OculusAuraInstanceID = nil
+                buff.OculusConfig = nil
+                buff.OculusFontSize = nil
                 if buff.OculusTimer then buff.OculusTimer:Hide() end
                 if buff.OculusExpiringBorder then buff.OculusExpiringBorder:Hide() end
             end
@@ -1097,7 +1092,7 @@ function Auras:ClearDebugLog()
 end
 
 -- Update setting (saves to raw Storage)
--- Usage: Auras:SetSetting("Buff.Size", 30) or Auras:SetSetting("Timer.Show", true)
+-- Usage: Auras:SetSetting("Buff.MaxCount", 9) or Auras:SetSetting("Timer.ExpiringThreshold", 0.25)
 function Auras:SetSetting(key, value)
     local storage = getRawStorage()
     if not storage then return end

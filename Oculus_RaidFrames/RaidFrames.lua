@@ -186,7 +186,6 @@ function RaidFrames:DebugStorage()
         if storage.Auras then
             print("  Auras.Enabled: " .. tostring(storage.Auras.Enabled))
             if storage.Auras.Buff then
-                print("  Auras.Buff.Size: " .. tostring(storage.Auras.Buff.Size))
                 print("  Auras.Buff.PerRow: " .. tostring(storage.Auras.Buff.PerRow))
                 print("  Auras.Buff.Anchor: " .. tostring(storage.Auras.Buff.Anchor))
                 print("  Auras.Buff.UseCustomPosition: " .. tostring(storage.Auras.Buff.UseCustomPosition))
@@ -198,7 +197,7 @@ function RaidFrames:DebugStorage()
                 print("  Auras.Debuff.UseCustomPosition: " .. tostring(storage.Auras.Debuff.UseCustomPosition))
             end
             if storage.Auras.Timer then
-                print("  Auras.Timer.Show: " .. tostring(storage.Auras.Timer.Show))
+                print("  Auras.Buff.ShowTimer: " .. tostring(storage.Auras.Buff.ShowTimer))
                 print("  Auras.Timer.ExpiringThreshold: " .. tostring(storage.Auras.Timer.ExpiringThreshold))
             else
                 print("  Auras.Timer: nil")

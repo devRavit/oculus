@@ -60,19 +60,6 @@ function BuffTab:PopulateBuffSettings(parent, controls, helpers)
     -- ============================================
     createSectionHeader(parent, "Buff Icon Settings")
 
-    -- Buff Size
-    local buffSizeSlider = createSliderRow(parent, "BuffSize", "Buff Icon Size", 10, 40, 1, true)
-    controls.BuffSizeSlider = buffSizeSlider
-    buffSizeSlider.userCallback = function(self, value)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Buff = storage.Buff or {}
-            storage.Buff.Size = value
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end
-
     -- Show Timer
     local showTimerCheckbox = createCheckboxRow(parent, "BuffShowTimer", "Show Duration Timer", true)
     controls.BuffShowTimerCheckbox = showTimerCheckbox
@@ -164,18 +151,31 @@ function BuffTab:PopulateTimerSettings(parent, controls, helpers)
     -- ============================================
     createSectionHeader(parent, "Timer Settings")
 
-    -- Show Timer
-    local showTimerCheckbox = createCheckboxRow(parent, "ShowTimer", "Show Duration Timer", true)
-    controls.ShowTimerCheckbox = showTimerCheckbox
-    showTimerCheckbox:SetScript("OnClick", function(self)
+    -- Font Size
+    local fontSizeSlider = createSliderRow(parent, "FontSize", "Timer Font Size", 6, 20, 1, true)
+    controls.FontSizeSlider = fontSizeSlider
+    fontSizeSlider.userCallback = function(self, value)
         if isInitializing() then return end
         local storage = getStorage()
         if storage then
             storage.Timer = storage.Timer or {}
-            storage.Timer.Show = self:GetChecked()
+            storage.Timer.FontSize = value
             if addon.Auras then addon.Auras:RefreshAllFrames() end
         end
-    end)
+    end
+
+    -- Expiring Glow Border Size
+    local glowPaddingSlider = createSliderRow(parent, "GlowPadding", "Expiring Border Size", 0, 30, 1, true)
+    controls.GlowPaddingSlider = glowPaddingSlider
+    glowPaddingSlider.userCallback = function(self, value)
+        if isInitializing() then return end
+        local storage = getStorage()
+        if storage then
+            storage.Timer = storage.Timer or {}
+            storage.Timer.GlowPadding = value
+            if addon.Auras then addon.Auras:RefreshAllFrames() end
+        end
+    end
 
     -- Expiring Threshold
     local expiringSlider = createSliderRow(parent, "ExpiringThreshold", "Expiring Warning (%)", 10, 50, 5, true)
