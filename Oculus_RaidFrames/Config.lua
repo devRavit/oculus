@@ -35,7 +35,6 @@ local DEFAULTS = {
         },
     },
     Buff = {
-        Size = 20,
         MaxCount = 9,
         PerRow = 3,
         Anchor = "BOTTOMRIGHT",
@@ -48,6 +47,8 @@ local DEFAULTS = {
     Timer = {
         Show = true,
         ExpiringThreshold = 0.25,
+        FontSize = 10,
+        GlowPadding = 10,
         TrackedSpells = {},
     },
 }
@@ -502,16 +503,6 @@ local function refreshControls()
         end)
     end
 
-    if controls.BuffSizeSlider then
-        local slider = controls.BuffSizeSlider
-        slider:SetValue(configuration.Buff.Size)
-        -- Force update fill after layout is complete
-        C_Timer.After(0.05, function()
-            if slider.updateFillFunc and slider:GetWidth() > 0 then
-                slider.updateFillFunc(configuration.Buff.Size)
-            end
-        end)
-    end
     if controls.BuffShowTimerCheckbox then
         controls.BuffShowTimerCheckbox:SetChecked(configuration.Buff.ShowTimer)
     end
@@ -558,6 +549,24 @@ local function refreshControls()
         C_Timer.After(0.05, function()
             if slider.updateFillFunc and slider:GetWidth() > 0 then
                 slider.updateFillFunc(thresholdPercent)
+            end
+        end)
+    end
+    if controls.GlowPaddingSlider then
+        local slider = controls.GlowPaddingSlider
+        slider:SetValue(configuration.Timer.GlowPadding)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(configuration.Timer.GlowPadding)
+            end
+        end)
+    end
+    if controls.FontSizeSlider then
+        local slider = controls.FontSizeSlider
+        slider:SetValue(configuration.Timer.FontSize)
+        C_Timer.After(0.05, function()
+            if slider.updateFillFunc and slider:GetWidth() > 0 then
+                slider.updateFillFunc(configuration.Timer.FontSize)
             end
         end)
     end
