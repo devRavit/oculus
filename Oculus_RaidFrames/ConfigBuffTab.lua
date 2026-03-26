@@ -151,19 +151,6 @@ function BuffTab:PopulateTimerSettings(parent, controls, helpers)
     -- ============================================
     createSectionHeader(parent, "Timer Settings")
 
-    -- Show Timer
-    local showTimerCheckbox = createCheckboxRow(parent, "ShowTimer", "Show Duration Timer", true)
-    controls.ShowTimerCheckbox = showTimerCheckbox
-    showTimerCheckbox:SetScript("OnClick", function(self)
-        if isInitializing() then return end
-        local storage = getStorage()
-        if storage then
-            storage.Timer = storage.Timer or {}
-            storage.Timer.Show = self:GetChecked()
-            if addon.Auras then addon.Auras:RefreshAllFrames() end
-        end
-    end)
-
     -- Font Size
     local fontSizeSlider = createSliderRow(parent, "FontSize", "Timer Font Size", 6, 20, 1, true)
     controls.FontSizeSlider = fontSizeSlider

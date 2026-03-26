@@ -197,7 +197,7 @@ function RaidFrames:DebugStorage()
                 print("  Auras.Debuff.UseCustomPosition: " .. tostring(storage.Auras.Debuff.UseCustomPosition))
             end
             if storage.Auras.Timer then
-                print("  Auras.Timer.Show: " .. tostring(storage.Auras.Timer.Show))
+                print("  Auras.Buff.ShowTimer: " .. tostring(storage.Auras.Buff.ShowTimer))
                 print("  Auras.Timer.ExpiringThreshold: " .. tostring(storage.Auras.Timer.ExpiringThreshold))
             else
                 print("  Auras.Timer: nil")
