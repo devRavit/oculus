@@ -436,7 +436,7 @@ local function setupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, showTi
             if not self:IsShown() then return end
 
             local cfg = self.OculusConfig or buildConfig()
-            local showTimer = cfg.Timer.Show
+            local showTimer = cfg.Buff.ShowTimer
             local expiringThreshold = cfg.Timer.ExpiringThreshold
 
             -- Update Blizzard timer visibility and style
@@ -1092,7 +1092,7 @@ function Auras:ClearDebugLog()
 end
 
 -- Update setting (saves to raw Storage)
--- Usage: Auras:SetSetting("Buff.MaxCount", 9) or Auras:SetSetting("Timer.Show", true)
+-- Usage: Auras:SetSetting("Buff.MaxCount", 9) or Auras:SetSetting("Timer.ExpiringThreshold", 0.25)
 function Auras:SetSetting(key, value)
     local storage = getRawStorage()
     if not storage then return end

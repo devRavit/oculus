@@ -35,6 +35,7 @@ local DEFAULTS = {
         },
     },
     Buff = {
+        ShowTimer = true,
         MaxCount = 9,
         PerRow = 3,
         Anchor = "BOTTOMRIGHT",
@@ -45,7 +46,6 @@ local DEFAULTS = {
         ShowTimer = true,
     },
     Timer = {
-        Show = true,
         ExpiringThreshold = 0.25,
         FontSize = 10,
         GlowPadding = 10,
@@ -539,9 +539,6 @@ local function refreshControls()
     end
 
     -- Timer Settings
-    if controls.ShowTimerCheckbox then
-        controls.ShowTimerCheckbox:SetChecked(configuration.Timer.Show)
-    end
     if controls.ExpiringSlider then
         local slider = controls.ExpiringSlider
         local thresholdPercent = configuration.Timer.ExpiringThreshold * 100
