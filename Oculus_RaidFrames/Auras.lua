@@ -140,8 +140,12 @@ local function deepMerge(target, source)
         if type(value) == "table" then
             result[key] = deepMerge(target[key] or {}, value)
         else
-            -- Use target value if it exists (even if false/0), otherwise use default
-            result[key] = target[key] ~= nil and target[key] or value
+            -- Explicit nil check to correctly handle false/0 values from storage
+            if target[key] ~= nil then
+                result[key] = target[key]
+            else
+                result[key] = value
+            end
         end
     end
     -- Add any keys from target that aren't in defaults
