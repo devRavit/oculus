@@ -95,7 +95,12 @@ local function deepMerge(target, source)
         if type(value) == "table" then
             result[key] = deepMerge(target[key] or {}, value)
         else
-            result[key] = target[key] ~= nil and target[key] or value
+            -- Explicit nil check to correctly handle false/0 values from storage
+            if target[key] ~= nil then
+                result[key] = target[key]
+            else
+                result[key] = value
+            end
         end
     end
     for key, value in pairs(target) do
