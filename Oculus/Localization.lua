@@ -229,6 +229,13 @@ LOCALES["enUS"] = {
     ["Added Spell"] = "Added spell:",
     ["Removed Spell"] = "Removed spell:",
     ["No Custom Spells"] = "No custom spells added. Add a spell above.",
+
+    -- ArenaFrames Config
+    ["Arena Scale"] = "Scale",
+    ["Arena Scale (%)"] = "Scale (%)",
+    ["Arena Spacing"] = "Spacing",
+    ["Frame Spacing"] = "Frame Spacing",
+    ["AF Reset Confirm"] = "Reset Arena Frames settings to defaults?",
 }
 
 -- Korean
@@ -436,6 +443,13 @@ LOCALES["koKR"] = {
     ["Added Spell"] = "주문 추가됨:",
     ["Removed Spell"] = "주문 제거됨:",
     ["No Custom Spells"] = "추가된 커스텀 주문이 없습니다. 위에서 주문을 추가하세요.",
+
+    -- ArenaFrames Config
+    ["Arena Scale"] = "크기",
+    ["Arena Scale (%)"] = "크기 (%)",
+    ["Arena Spacing"] = "간격",
+    ["Frame Spacing"] = "프레임 간격",
+    ["AF Reset Confirm"] = "아레나 프레임 설정을 기본값으로 초기화할까요?",
 }
 
 -- Add missing keys to English
