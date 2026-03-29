@@ -1,0 +1,11 @@
+## Interface: 120000
+## Title: Oculus - Arena Frames
+## Notes: Arena enemy frame scaling and layout
+## Author: RAVIT
+## Version: 0.1.0
+## Dependencies: Oculus
+## SavedVariables: OculusArenaFramesStorage
+## IconTexture: Interface\Icons\INV_Misc_Eye_01
+
+ArenaFrames.lua
+Config.lua
