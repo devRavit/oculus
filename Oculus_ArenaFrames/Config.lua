@@ -45,7 +45,7 @@ local cumulativeY
 -- Storage helper
 -- ============================================================
 
-local function getStorage()
+local function GetStorage()
     local af = addon.ArenaFrames
     return af and af.Storage
 end
@@ -55,7 +55,7 @@ end
 -- Widget helpers
 -- ============================================================
 
-local function createSectionHeader(parent, titleKey)
+local function CreateSectionHeader(parent, titleKey)
     cumulativeY = cumulativeY - SECTION_SPACING
 
     local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -75,7 +75,7 @@ local function createSectionHeader(parent, titleKey)
 end
 
 
-local function createSliderRow(parent, name, labelKey, min, max, step, useIndent)
+local function CreateSliderRow(parent, name, labelKey, min, max, step, useIndent)
     cumulativeY = cumulativeY - 8
 
     local xOffset = useIndent and INDENT or 0
@@ -184,7 +184,7 @@ local function createSliderRow(parent, name, labelKey, min, max, step, useIndent
 end
 
 
-local function setSliderValue(slider, value)
+local function SetSliderValue(slider, value)
     slider:SetValue(value)
     C_Timer.After(0.05, function()
         if slider:GetWidth() > 0 then
@@ -199,20 +199,20 @@ end
 -- Refresh
 -- ============================================================
 
-local function refreshControls()
+local function RefreshControls()
     isInitializing = true
 
-    local s = getStorage()
+    local s = GetStorage()
     if not s then
         isInitializing = false
         return
     end
 
     if controls.ScaleSlider then
-        setSliderValue(controls.ScaleSlider, s.Scale or 100)
+        SetSliderValue(controls.ScaleSlider, s.Scale or 100)
     end
     if controls.SpacingSlider then
-        setSliderValue(controls.SpacingSlider, s.Spacing or 2)
+        SetSliderValue(controls.SpacingSlider, s.Spacing or 2)
     end
 
     isInitializing = false
@@ -223,7 +223,7 @@ end
 -- Populate settings panel
 -- ============================================================
 
-local function populateSettingsPanel()
+local function PopulateSettingsPanel()
     local panel = Oculus and Oculus.ModulePanels and Oculus.ModulePanels["ArenaFrames"]
     if not panel then return end
     if panel.SettingsPopulated then return end
@@ -250,13 +250,13 @@ local function populateSettingsPanel()
     cumulativeY = 0  -- reset before building content
 
     -- ── Scale ──────────────────────────────────────────────
-    createSectionHeader(scrollChild, "Arena Scale")
+    CreateSectionHeader(scrollChild, "Arena Scale")
 
-    local scaleSlider = createSliderRow(scrollChild, "Scale", "Arena Scale (%)", 50, 200, 1, true)
+    local scaleSlider = CreateSliderRow(scrollChild, "Scale", "Arena Scale (%)", 50, 200, 1, true)
     controls.ScaleSlider = scaleSlider
     scaleSlider.userCallback = function(self, value)
         if isInitializing then return end
-        local s = getStorage()
+        local s = GetStorage()
         if s then
             s.Scale = value
             if addon.ArenaFrames then addon.ArenaFrames:UpdateScale() end
@@ -264,13 +264,13 @@ local function populateSettingsPanel()
     end
 
     -- ── Spacing ────────────────────────────────────────────
-    createSectionHeader(scrollChild, "Arena Spacing")
+    CreateSectionHeader(scrollChild, "Arena Spacing")
 
-    local spacingSlider = createSliderRow(scrollChild, "Spacing", "Frame Spacing", 0, 30, 1, true)
+    local spacingSlider = CreateSliderRow(scrollChild, "Spacing", "Frame Spacing", 0, 30, 1, true)
     controls.SpacingSlider = spacingSlider
     spacingSlider.userCallback = function(self, value)
         if isInitializing then return end
-        local s = getStorage()
+        local s = GetStorage()
         if s then
             s.Spacing = value
             if addon.ArenaFrames then addon.ArenaFrames:UpdateSpacing() end
@@ -282,12 +282,12 @@ local function populateSettingsPanel()
     -- Hooks
     if panel.EnableCheckbox then
         panel.EnableCheckbox:HookScript("OnClick", function()
-            C_Timer.After(0.05, refreshControls)
+            C_Timer.After(0.05, RefreshControls)
         end)
     end
 
-    panel:HookScript("OnShow", refreshControls)
-    C_Timer.After(0.1, refreshControls)
+    panel:HookScript("OnShow", RefreshControls)
+    C_Timer.After(0.1, RefreshControls)
 
     panel.SettingsPopulated = true
 end
@@ -302,12 +302,12 @@ StaticPopupDialogs["OCULUS_AF_RESET_CONFIRM"] = {
     button1      = L["Reset"],
     button2      = L["Cancel"],
     OnAccept     = function()
-        local s = getStorage()
+        local s = GetStorage()
         if s then
             local defaults = addon.ArenaFrames and addon.ArenaFrames.DEFAULTS or {}
             for k, v in pairs(defaults) do s[k] = v end
             if addon.ArenaFrames then addon.ArenaFrames:ApplySettings() end
-            refreshControls()
+            RefreshControls()
         end
     end,
     timeout      = 0,
@@ -326,7 +326,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self)
     C_Timer.After(0.3, function()
         if Oculus and Oculus.ModulePanels then
-            populateSettingsPanel()
+            PopulateSettingsPanel()
         end
     end)
     self:UnregisterEvent("PLAYER_LOGIN")
