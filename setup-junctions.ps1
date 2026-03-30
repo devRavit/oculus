@@ -1,7 +1,7 @@
 $addons = "C:\Program Files (x86)\World of Warcraft\_retail_\Interface\AddOns"
 $repo   = "C:\Users\종민\repository\addon\oculus"
 
-$modules = @("Oculus", "Oculus_UnitFrames", "Oculus_RaidFrames", "Oculus_General")
+$modules = @("Oculus", "Oculus_UnitFrames", "Oculus_RaidFrames", "Oculus_ArenaFrames", "Oculus_General")
 
 foreach ($m in $modules) {
     $dst = "$addons\$m"
