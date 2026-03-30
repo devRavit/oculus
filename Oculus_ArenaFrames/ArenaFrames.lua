@@ -42,7 +42,7 @@ local enabled = false
 -- Storage
 -- ============================================================
 
-local function initStorage()
+local function InitStorage()
     if not OculusArenaFramesStorage then
         OculusArenaFramesStorage = {}
     end
@@ -60,8 +60,8 @@ end
 -- ============================================================
 
 -- Re-position member frames 2+ with custom spacing.
--- Called after CompactArenaFrame:UpdateLayout() via hooksecurefunc.
-local function applySpacing(cf)
+-- Called directly via events (UpdateLayout hook not available in WoW 12.0).
+local function ApplySpacing(cf)
     if not enabled then return end
     local s = ArenaFrames.Storage
     if not s or not cf.memberUnitFrames then return end
@@ -83,7 +83,7 @@ local function applySpacing(cf)
 end
 
 
-local function applyScale()
+local function ApplyScale()
     local cf = CompactArenaFrame
     if not cf then return end
     local s = ArenaFrames.Storage
@@ -92,12 +92,13 @@ local function applyScale()
 end
 
 
-local function hookArenaFrame()
+local function HookArenaFrame()
     if hooked then return end
     local cf = CompactArenaFrame
     if not cf then return end
+    if not cf.UpdateLayout then return end
 
-    hooksecurefunc(cf, "UpdateLayout", applySpacing)
+    hooksecurefunc(cf, "UpdateLayout", ApplySpacing)
     hooked = true
 end
 
@@ -107,20 +108,20 @@ end
 -- ============================================================
 
 function ArenaFrames:UpdateScale()
-    applyScale()
+    ApplyScale()
 end
 
 
 function ArenaFrames:UpdateSpacing()
     local cf = CompactArenaFrame
-    if cf then applySpacing(cf) end
+    if cf then ApplySpacing(cf) end
 end
 
 
 function ArenaFrames:ApplySettings()
-    applyScale()
+    ApplyScale()
     local cf = CompactArenaFrame
-    if cf then applySpacing(cf) end
+    if cf then ApplySpacing(cf) end
 end
 
 
@@ -152,10 +153,10 @@ end
 
 
 function ArenaFrames:Initialize()
-    initStorage()
+    InitStorage()
     enabled = true
 
-    hookArenaFrame()
+    HookArenaFrame()
 
     -- Apply after short delay (CompactArenaFrame may still be setting up)
     C_Timer.After(0.3, function()
@@ -172,33 +173,62 @@ end
 -- Event Frame
 -- ============================================================
 
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
-eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
-
-eventFrame:SetScript("OnEvent", function(self, event, arg1)
-    if event == "ADDON_LOADED" and arg1 == addonName then
+local eventHandlers = {
+    ADDON_LOADED = function(self, arg1)
+        if arg1 ~= addonName then return end
         self:UnregisterEvent("ADDON_LOADED")
         local OculusCore = _G["Oculus"]
         if OculusCore then
             OculusCore:RegisterModule("ArenaFrames", ArenaFrames)
         end
+    end,
 
-    elseif event == "PLAYER_ENTERING_WORLD" then
+    PLAYER_ENTERING_WORLD = function()
         -- Re-apply after zone transition (e.g. arena entry)
         C_Timer.After(0.5, function()
-            hookArenaFrame()
+            HookArenaFrame()
             if enabled then
                 ArenaFrames:ApplySettings()
             end
         end)
+    end,
 
-    elseif event == "EDIT_MODE_LAYOUTS_UPDATED" then
+    -- Fires when opponent specs are revealed in arena prep area.
+    -- At this point CompactArenaFrame members are fully assigned.
+    ARENA_PREP_OPPONENT_SPECIALIZATIONS = function()
+        C_Timer.After(0.1, function()
+            if enabled then
+                ArenaFrames:ApplySettings()
+            end
+        end)
+    end,
+
+    -- Fires when an arena opponent's frame updates (e.g. unit assigned mid-prep).
+    ARENA_OPPONENT_UPDATE = function()
+        if enabled then
+            ArenaFrames:ApplySettings()
+        end
+    end,
+
+    EDIT_MODE_LAYOUTS_UPDATED = function()
         -- Edit Mode 진입/전환 시 CompactArenaFrame이 재배치되므로 재적용
         C_Timer.After(0.1, function()
-            hookArenaFrame()
+            HookArenaFrame()
             ArenaFrames:ApplySettings()
         end)
+    end,
+}
+
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
+eventFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
+eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
+
+eventFrame:SetScript("OnEvent", function(self, event, ...)
+    local handler = eventHandlers[event]
+    if handler then
+        handler(self, ...)
     end
 end)

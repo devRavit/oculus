@@ -27,6 +27,19 @@ function FrameTab:Populate(parent, controls, helpers)
     -- ============================================
     createSectionHeader(parent, "Frame Settings")
 
+    -- Party Frame Scale
+    local scaleSlider = createSliderRow(parent, "PartyScale", "Party Frame Scale (%)", 50, 200, 1, true)
+    controls.PartyScaleSlider = scaleSlider
+    scaleSlider.userCallback = function(self, value)
+        if isInitializing() then return end
+        local storage = getFullStorage()
+        if storage then
+            storage.Frame = storage.Frame or {}
+            storage.Frame.Scale = value
+            if addon.Auras then addon.Auras:ApplyPartyScale() end
+        end
+    end
+
     -- Hide Role Icon
     local hideRoleIconCheckbox = createCheckboxRow(parent, "HideRoleIcon", "Hide Role Icon", true)
     controls.HideRoleIconCheckbox = hideRoleIconCheckbox
