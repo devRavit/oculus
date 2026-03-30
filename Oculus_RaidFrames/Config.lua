@@ -7,7 +7,6 @@ local addonName, addon = ...
 -- Lua API Localization
 local pairs = pairs
 local math = math
-local print = print
 local unpack = unpack
 
 -- WoW API Localization
@@ -24,6 +23,7 @@ local L = Oculus and Oculus.L or {}
 -- Constants (must match RaidFrames.lua DEFAULTS structure)
 local DEFAULTS = {
     Frame = {
+        Scale = 100,
         HideRoleIcon = false,
         HideName = false,
         HideAggroBorder = false,
@@ -64,7 +64,7 @@ local config = {
 
 
 -- Helper: Get raw Storage reference (Auras only)
-local function getRawStorage()
+local function GetRawStorage()
     local rf = addon.RaidFrames
     if not rf then return nil end
 
@@ -77,7 +77,7 @@ local function getRawStorage()
 end
 
 -- Helper: Get full Storage reference (includes Frame, Auras, etc)
-local function getFullStorage()
+local function GetFullStorage()
     local rf = addon.RaidFrames
     if not rf then return nil end
 
@@ -89,11 +89,11 @@ local function getFullStorage()
 end
 
 -- Deep merge helper (storage overwrites defaults, preserves false/0 values)
-local function deepMerge(target, source)
+local function DeepMerge(target, source)
     local result = {}
     for key, value in pairs(source) do
         if type(value) == "table" then
-            result[key] = deepMerge(target[key] or {}, value)
+            result[key] = DeepMerge(target[key] or {}, value)
         else
             -- Explicit nil check to correctly handle false/0 values from storage
             if target[key] ~= nil then
@@ -106,7 +106,7 @@ local function deepMerge(target, source)
     for key, value in pairs(target) do
         if result[key] == nil then
             if type(value) == "table" then
-                result[key] = deepMerge(value, {})
+                result[key] = DeepMerge(value, {})
             else
                 result[key] = value
             end
@@ -116,21 +116,21 @@ local function deepMerge(target, source)
 end
 
 -- Helper: Build configuration from Storage with defaults
-local function buildConfig()
-    local fullStorage = getFullStorage() or {}
-    local storage = getRawStorage() or {}
+local function BuildConfig()
+    local fullStorage = GetFullStorage() or {}
+    local storage = GetRawStorage() or {}
 
-    config.Frame = deepMerge(fullStorage.Frame or {}, DEFAULTS.Frame)
-    config.Buff = deepMerge(storage.Buff or {}, DEFAULTS.Buff)
-    config.Debuff = deepMerge(storage.Debuff or {}, DEFAULTS.Debuff)
-    config.Timer = deepMerge(storage.Timer or {}, DEFAULTS.Timer)
+    config.Frame = DeepMerge(fullStorage.Frame or {}, DEFAULTS.Frame)
+    config.Buff = DeepMerge(storage.Buff or {}, DEFAULTS.Buff)
+    config.Debuff = DeepMerge(storage.Debuff or {}, DEFAULTS.Debuff)
+    config.Timer = DeepMerge(storage.Timer or {}, DEFAULTS.Timer)
 
     return config
 end
 
 -- Helper: Get Storage for saving (creates if needed)
-local function getStorage()
-    local storage = getRawStorage()
+local function GetStorage()
+    local storage = GetRawStorage()
     if storage then return storage end
 
     local rf = addon.RaidFrames
@@ -170,7 +170,7 @@ local currentCategory = {1, 1, 1}  -- Current category for each tab
 
 
 -- Enable/Disable all setting controls
-local function setControlsEnabled(enabled)
+local function SetControlsEnabled(enabled)
     local alpha = enabled and 1.0 or 0.5
 
     for _, control in pairs(controls) do
@@ -190,7 +190,7 @@ local function setControlsEnabled(enabled)
 end
 
 -- Create section header
-local function createSectionHeader(parent, titleKey)
+local function CreateSectionHeader(parent, titleKey)
     cumulativeY = cumulativeY - SECTION_SPACING
 
     local header = parent:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -210,7 +210,7 @@ local function createSectionHeader(parent, titleKey)
 end
 
 -- Create modern slider row
-local function createSliderRow(parent, name, labelKey, min, max, step, useIndent)
+local function CreateSliderRow(parent, name, labelKey, min, max, step, useIndent)
     cumulativeY = cumulativeY - 8
 
     -- Compute decimal places from step (e.g. step=0.1 → 1, step=1 → 0)
@@ -362,7 +362,7 @@ local function createSliderRow(parent, name, labelKey, min, max, step, useIndent
 end
 
 -- Create dropdown row
-local function createDropdownRow(parent, name, labelKey, options, useIndent)
+local function CreateDropdownRow(parent, name, labelKey, options, useIndent)
     cumulativeY = cumulativeY - 8
 
     local xOffset = useIndent and INDENT or 0
@@ -395,7 +395,7 @@ local function createDropdownRow(parent, name, labelKey, options, useIndent)
 end
 
 -- Create checkbox row (modern style)
-local function createCheckboxRow(parent, name, labelKey, useIndent)
+local function CreateCheckboxRow(parent, name, labelKey, useIndent)
     cumulativeY = cumulativeY - 8
 
     local xOffset = useIndent and INDENT or 0
@@ -440,7 +440,7 @@ local function createCheckboxRow(parent, name, labelKey, useIndent)
 end
 
 -- Refresh all control values from Storage
-local function refreshControls()
+local function RefreshControls()
     isInitializing = true
 
     local isEnabled = true
@@ -451,11 +451,22 @@ local function refreshControls()
         end
     end
 
-    setControlsEnabled(isEnabled)
+    SetControlsEnabled(isEnabled)
 
-    local configuration = buildConfig()
+    local configuration = BuildConfig()
 
     -- Frame Settings
+    if controls.PartyScaleSlider then
+        local value = configuration.Frame.Scale or 100
+        local slider = controls.PartyScaleSlider
+        slider:SetValue(value)
+        C_Timer.After(0.05, function()
+            if slider:GetWidth() > 0 then
+                slider:SetValue(value)
+                if slider.updateFillFunc then slider.updateFillFunc(value) end
+            end
+        end)
+    end
     if controls.HideRoleIconCheckbox then
         controls.HideRoleIconCheckbox:SetChecked(configuration.Frame.HideRoleIcon)
     end
@@ -582,7 +593,7 @@ local function refreshControls()
 end
 
 -- Create tab button (header style)
-local function createTabButton(parent, index, text, onClick)
+local function CreateTabButton(parent, index, text, onClick)
     local button = CreateFrame("Button", nil, parent)
     button:SetID(index)
     button:SetSize(120, 24)
@@ -622,7 +633,7 @@ local function createTabButton(parent, index, text, onClick)
 end
 
 -- Create category button (left sidebar)
-local function createCategoryButton(sidebar, container, index, text, onClick)
+local function CreateCategoryButton(sidebar, container, index, text, onClick)
     local button = CreateFrame("Button", nil, sidebar)
     button:SetSize(150, 20)
     button:SetID(index)
@@ -662,7 +673,7 @@ local function createCategoryButton(sidebar, container, index, text, onClick)
 end
 
 -- Switch to category within current tab
-local function switchToCategory(panel, tabIndex, categoryIndex)
+local function SwitchToCategory(panel, tabIndex, categoryIndex)
     currentCategory[tabIndex] = categoryIndex
 
     local container = panel.TabContainers[tabIndex]
@@ -683,7 +694,7 @@ local function switchToCategory(panel, tabIndex, categoryIndex)
 end
 
 -- Switch to tab
-local function switchToTab(panel, tabIndex)
+local function SwitchToTab(panel, tabIndex)
     currentTab = tabIndex
 
     -- Update tab button states
@@ -702,14 +713,16 @@ local function switchToTab(panel, tabIndex)
     end
 
     -- Also update the category selection for the current tab
-    switchToCategory(panel, tabIndex, currentCategory[tabIndex])
+    SwitchToCategory(panel, tabIndex, currentCategory[tabIndex])
 end
 
 -- Add settings to the RaidFrames panel
-local function populateSettingsPanel()
+local function PopulateSettingsPanel()
     local panel = Oculus and Oculus.ModulePanels and Oculus.ModulePanels["RaidFrames"]
     if not panel then
-        print("|cFFFF0000[Oculus RaidFrames]|r Settings panel not found")
+        if Oculus and Oculus.Logger then
+            Oculus.Logger:Log("RaidFrames", "Config", "Settings panel not found")
+        end
         return
     end
 
@@ -734,7 +747,9 @@ local function populateSettingsPanel()
         if addon.Auras and addon.Auras.TogglePreview then
             addon.Auras:TogglePreview()
         else
-            print("|cFFFFFF00[Oculus]|r " .. L["Preview Not Available"])
+            if Oculus and Oculus.Logger then
+                Oculus.Logger:Log("RaidFrames", "Config", "Preview not available")
+            end
         end
     end)
 
@@ -755,20 +770,20 @@ local function populateSettingsPanel()
     panel.TabContainers = {}
 
     -- Tab 1: 프레임 설정
-    local tab1 = createTabButton(tabHeader, 1, L["Frame Settings"], function()
-        switchToTab(panel, 1)
+    local tab1 = CreateTabButton(tabHeader, 1, L["Frame Settings"], function()
+        SwitchToTab(panel, 1)
     end)
     tabHeader.tabButtons[1] = tab1
 
     -- Tab 2: 버프 설정
-    local tab2 = createTabButton(tabHeader, 2, L["Buff Settings"], function()
-        switchToTab(panel, 2)
+    local tab2 = CreateTabButton(tabHeader, 2, L["Buff Settings"], function()
+        SwitchToTab(panel, 2)
     end)
     tabHeader.tabButtons[2] = tab2
 
     -- Tab 3: 디버프 설정
-    local tab3 = createTabButton(tabHeader, 3, L["Debuff Settings"], function()
-        switchToTab(panel, 3)
+    local tab3 = CreateTabButton(tabHeader, 3, L["Debuff Settings"], function()
+        SwitchToTab(panel, 3)
     end)
     tabHeader.tabButtons[3] = tab3
 
@@ -807,12 +822,12 @@ local function populateSettingsPanel()
 
     -- Helper functions for tab modules
     local helpers = {
-        getStorage = getStorage,
-        getFullStorage = getFullStorage,
-        createSectionHeader = createSectionHeader,
-        createSliderRow = createSliderRow,
-        createDropdownRow = createDropdownRow,
-        createCheckboxRow = createCheckboxRow,
+        getStorage = GetStorage,
+        getFullStorage = GetFullStorage,
+        createSectionHeader = CreateSectionHeader,
+        createSliderRow = CreateSliderRow,
+        createDropdownRow = CreateDropdownRow,
+        createCheckboxRow = CreateCheckboxRow,
         isInitializing = function() return isInitializing end,
         getCumulativeY = function() return cumulativeY end,
         setCumulativeY = function(y) cumulativeY = y end,
@@ -824,8 +839,8 @@ local function populateSettingsPanel()
     local container1 = panel.TabContainers[1]
 
     -- Only one category for Frame Settings
-    local cat1 = createCategoryButton(container1.sidebar, container1, 1, L["Frame Settings"], function()
-        switchToCategory(panel, 1, 1)
+    local cat1 = CreateCategoryButton(container1.sidebar, container1, 1, L["Frame Settings"], function()
+        SwitchToCategory(panel, 1, 1)
     end)
     container1.categoryButtons[1] = cat1
 
@@ -852,8 +867,8 @@ local function populateSettingsPanel()
     local container2 = panel.TabContainers[2]
 
     -- Category 1: 버프 아이콘 설정
-    local cat2_1 = createCategoryButton(container2.sidebar, container2, 1, L["Buff Icon Settings"], function()
-        switchToCategory(panel, 2, 1)
+    local cat2_1 = CreateCategoryButton(container2.sidebar, container2, 1, L["Buff Icon Settings"], function()
+        SwitchToCategory(panel, 2, 1)
     end)
     container2.categoryButtons[1] = cat2_1
 
@@ -875,8 +890,8 @@ local function populateSettingsPanel()
     scrollChild2_1:SetHeight(-cumulativeY + 30)
 
     -- Category 2: 타이머 설정
-    local cat2_2 = createCategoryButton(container2.sidebar, container2, 2, L["Timer Settings"], function()
-        switchToCategory(panel, 2, 2)
+    local cat2_2 = CreateCategoryButton(container2.sidebar, container2, 2, L["Timer Settings"], function()
+        SwitchToCategory(panel, 2, 2)
     end)
     container2.categoryButtons[2] = cat2_2
 
@@ -904,8 +919,8 @@ local function populateSettingsPanel()
     local container3 = panel.TabContainers[3]
 
     -- Only one category for Debuff Settings
-    local cat3 = createCategoryButton(container3.sidebar, container3, 1, L["Debuff Settings"], function()
-        switchToCategory(panel, 3, 1)
+    local cat3 = CreateCategoryButton(container3.sidebar, container3, 1, L["Debuff Settings"], function()
+        SwitchToCategory(panel, 3, 1)
     end)
     container3.categoryButtons[1] = cat3
 
@@ -931,21 +946,21 @@ local function populateSettingsPanel()
     -- ============================================
     if panel.EnableCheckbox then
         panel.EnableCheckbox:HookScript("OnClick", function()
-            C_Timer.After(0.05, refreshControls)
+            C_Timer.After(0.05, RefreshControls)
         end)
     end
 
     -- ============================================
     -- OnShow - Load values
     -- ============================================
-    panel:HookScript("OnShow", refreshControls)
+    panel:HookScript("OnShow", RefreshControls)
 
     -- Initial refresh
-    C_Timer.After(0.1, refreshControls)
+    C_Timer.After(0.1, RefreshControls)
 
     -- Select first tab and category
-    switchToTab(panel, 1)
-    switchToCategory(panel, 1, 1)
+    SwitchToTab(panel, 1)
+    SwitchToCategory(panel, 1, 1)
 
     panel.SettingsPopulated = true
 end
@@ -965,8 +980,10 @@ StaticPopupDialogs["OCULUS_RF_RESET_CONFIRM"] = {
                     storage.Auras[key] = value
                 end
                 if addon.Auras then addon.Auras:RefreshAllFrames() end
-                print("|cFF00FF00[Oculus]|r " .. L["Settings Reset"])
-                refreshControls()
+                if Oculus and Oculus.Logger then
+                    Oculus.Logger:Log("RaidFrames", "Config", "Settings reset to defaults")
+                end
+                RefreshControls()
             end
         end
     end,
@@ -983,7 +1000,7 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function(self, event)
     C_Timer.After(0.3, function()
         if Oculus and Oculus.ModulePanels then
-            populateSettingsPanel()
+            PopulateSettingsPanel()
         end
     end)
     self:UnregisterEvent("PLAYER_LOGIN")
