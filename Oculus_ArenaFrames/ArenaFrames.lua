@@ -175,6 +175,7 @@ end
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
 
 eventFrame:SetScript("OnEvent", function(self, event, arg1)
     if event == "ADDON_LOADED" and arg1 == addonName then
@@ -191,6 +192,13 @@ eventFrame:SetScript("OnEvent", function(self, event, arg1)
             if enabled then
                 ArenaFrames:ApplySettings()
             end
+        end)
+
+    elseif event == "EDIT_MODE_LAYOUTS_UPDATED" then
+        -- Edit Mode 진입/전환 시 CompactArenaFrame이 재배치되므로 재적용
+        C_Timer.After(0.1, function()
+            hookArenaFrame()
+            ArenaFrames:ApplySettings()
         end)
     end
 end)
