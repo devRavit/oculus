@@ -1,8 +1,8 @@
-## Interface: 120000
+## Interface: 120005
 ## Title: Oculus - RaidFrames
 ## Notes: Raid/Party Frame Enhancements
 ## Author: RAVIT
-## Version: 0.2.5
+## Version: 0.2.6
 ## Dependencies: Oculus
 ## OptionalDeps: Masque
 ## SavedVariables: OculusRaidFramesStorage
