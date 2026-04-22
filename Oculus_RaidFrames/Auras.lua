@@ -386,19 +386,20 @@ local DEBUFF_TYPE_COLORS = {
 
 -- Filter: should this buff be shown on raid/party frames?
 -- Replicates Blizzard's CompactUnitFrame buff filtering logic
+-- Uses pcall to handle potential secret value booleans in 12.0.5
 local function ShouldDisplayBuff(auraData)
     if not auraData then return false end
-    -- Always show boss auras
-    if auraData.isBossAura then return true end
-    -- Show buffs cast by the player
-    if auraData.isFromPlayerOrPlayerPet then return true end
-    -- Show raid-relevant buffs (e.g. Mark of the Wild, Power Word: Fortitude)
-    if auraData.isRaid then return true end
-    -- Show auras flagged for nameplate display on all units
-    if auraData.nameplateShowAll and not auraData.isNameplateOnly then return true end
-    -- Show tank/healer/DPS role auras
-    if auraData.isTankRoleAura or auraData.isHealerRoleAura or auraData.isDPSRoleAura then return true end
-    return false
+    local success, result = pcall(function()
+        if auraData.isBossAura then return true end
+        if auraData.isFromPlayerOrPlayerPet then return true end
+        if auraData.isRaid then return true end
+        if auraData.nameplateShowAll and not auraData.isNameplateOnly then return true end
+        if auraData.isTankRoleAura or auraData.isHealerRoleAura or auraData.isDPSRoleAura then return true end
+        return false
+    end)
+    -- If pcall fails (secret value), show the buff to be safe
+    if not success then return true end
+    return result
 end
 
 
