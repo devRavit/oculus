@@ -549,15 +549,18 @@ function Auras:ApplySettings(frame)
     local inCombat = InCombatLockdown()
 
     -- Hide dispel overlay and icons if configured
+    -- DispelOverlay is a forbidden frame in 12.0.5 (Blizzard_PrivateAurasUI) — skip if forbidden
     if frameSettings and frameSettings.HideDispelOverlay then
-        if frame.DispelOverlay then
+        if frame.DispelOverlay and not frame.DispelOverlay:IsForbidden() then
             frame.DispelOverlay:Hide()
             frame.DispelOverlay:SetAlpha(0)
         end
 
         if frame.dispelDebuffFrames then
             for _, dispelFrame in ipairs(frame.dispelDebuffFrames) do
-                dispelFrame:Hide()
+                if not dispelFrame:IsForbidden() then
+                    dispelFrame:Hide()
+                end
             end
         end
     end
@@ -759,16 +762,19 @@ function Auras:UpdateTimers()
         local unit = frame.unit
 
         -- Hide dispel overlay and icons if configured (continuously enforce)
+        -- DispelOverlay is a forbidden frame in 12.0.5 (Blizzard_PrivateAurasUI) — skip if forbidden
         local frameSettings = GetFrameSettings()
         if frameSettings and frameSettings.HideDispelOverlay then
-            if frame.DispelOverlay and frame.DispelOverlay:IsShown() then
-                frame.DispelOverlay:Hide()
-                frame.DispelOverlay:SetAlpha(0)
+            if frame.DispelOverlay and not frame.DispelOverlay:IsForbidden() then
+                if frame.DispelOverlay:IsShown() then
+                    frame.DispelOverlay:Hide()
+                    frame.DispelOverlay:SetAlpha(0)
+                end
             end
 
             if frame.dispelDebuffFrames then
                 for _, dispelFrame in ipairs(frame.dispelDebuffFrames) do
-                    if dispelFrame:IsShown() then
+                    if not dispelFrame:IsForbidden() and dispelFrame:IsShown() then
                         dispelFrame:Hide()
                     end
                 end
