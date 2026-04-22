@@ -11,9 +11,10 @@ local pairs  = pairs
 local ipairs = ipairs
 
 -- WoW API Localization
-local CreateFrame    = CreateFrame
-local hooksecurefunc = hooksecurefunc
-local C_Timer        = C_Timer
+local CreateFrame       = CreateFrame
+local hooksecurefunc    = hooksecurefunc
+local InCombatLockdown  = InCombatLockdown
+local C_Timer           = C_Timer
 
 
 -- Module References
@@ -59,10 +60,9 @@ end
 -- Layout
 -- ============================================================
 
--- Re-position member frames 2+ with custom spacing.
--- Called directly via events (UpdateLayout hook not available in WoW 12.0).
 local function ApplySpacing(cf)
     if not enabled then return end
+    if InCombatLockdown() then return end
     local s = ArenaFrames.Storage
     if not s or not cf.memberUnitFrames then return end
 
@@ -86,9 +86,11 @@ end
 local function ApplyScale()
     local cf = CompactArenaFrame
     if not cf then return end
+    if InCombatLockdown() then return end
     local s = ArenaFrames.Storage
     if not s then return end
-    cf:SetScale(s.Scale / 100)
+    local scale = s.Scale / 100
+    cf:SetScale(scale)
 end
 
 
@@ -98,7 +100,12 @@ local function HookArenaFrame()
     if not cf then return end
     if not cf.UpdateLayout then return end
 
-    hooksecurefunc(cf, "UpdateLayout", ApplySpacing)
+    -- C_Timer.After(0) breaks the taint chain from the secure UpdateLayout context
+    hooksecurefunc(cf, "UpdateLayout", function(frame)
+        C_Timer.After(0, function()
+            ApplySpacing(frame)
+        end)
+    end)
     hooked = true
 end
 
@@ -141,9 +148,6 @@ function ArenaFrames:Disable()
     local cf = CompactArenaFrame
     if cf then
         cf:SetScale(1.0)
-        -- Trigger Blizzard layout to restore default frame positions.
-        -- Our hook skips because enabled = false.
-        if cf.UpdateLayout then cf:UpdateLayout() end
     end
 
     if Oculus and Oculus.Logger then
@@ -193,6 +197,13 @@ local eventHandlers = {
         end)
     end,
 
+    -- Reapply spacing after combat ends (blocked during combat lockdown)
+    PLAYER_REGEN_ENABLED = function()
+        if enabled then
+            ArenaFrames:ApplySettings()
+        end
+    end,
+
     -- Fires when opponent specs are revealed in arena prep area.
     -- At this point CompactArenaFrame members are fully assigned.
     ARENA_PREP_OPPONENT_SPECIALIZATIONS = function()
@@ -222,6 +233,7 @@ local eventHandlers = {
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("ARENA_PREP_OPPONENT_SPECIALIZATIONS")
 eventFrame:RegisterEvent("ARENA_OPPONENT_UPDATE")
 eventFrame:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
