@@ -40,6 +40,13 @@ Auras.IsEnabled = false
 local isEnabled = false  -- Local cache for performance
 local inCombat = false  -- Track combat state
 
+-- Unit-to-frame mapping for UNIT_AURA event dispatch
+local unitFrameMap = {}
+local unitFrameMapDirty = true
+
+-- Custom aura frame constants
+local MAX_DEBUFF_FRAMES = 6
+
 
 -- Masque Support
 local Masque = LibStub and LibStub("Masque", true)
@@ -259,6 +266,317 @@ local function RegisterWithMasque(auraFrame)
         end
     end
 end
+
+-- Create a single custom aura icon frame (Button for Masque compatibility)
+local function CreateAuraIconFrame(parent, index, frameType)
+    local f = CreateFrame("Button", nil, parent)
+    f:SetSize(DEFAULTS.Buff.Size, DEFAULTS.Buff.Size)
+
+    -- Icon texture
+    f.Icon = f:CreateTexture(nil, "BACKGROUND")
+    f.Icon:SetAllPoints()
+    f.Icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+    -- Cooldown swipe
+    f.cooldown = CreateFrame("Cooldown", nil, f, "CooldownFrameTemplate")
+    f.cooldown:SetAllPoints()
+    f.cooldown:SetDrawSwipe(true)
+    f.cooldown:SetReverse(true)
+    f.cooldown:SetHideCountdownNumbers(false)
+
+    -- Border texture (debuff type coloring)
+    f.border = f:CreateTexture(nil, "OVERLAY")
+    f.border:SetAllPoints()
+    f.border:SetTexture("Interface\\Buttons\\UI-Debuff-Overlays")
+    f.border:SetTexCoord(0.296875, 0.5703125, 0, 0.515625)
+    f.border:Hide()
+
+    -- Stack count
+    f.count = f:CreateFontString(nil, "OVERLAY")
+    f.count:SetFont(STANDARD_TEXT_FONT, 10, "OUTLINE")
+    f.count:SetPoint("BOTTOMRIGHT", -1, 1)
+    f.count:SetTextColor(1, 1, 1)
+    f.count:Hide()
+
+    -- Normal texture for Masque
+    f:SetNormalTexture("")
+
+    -- Metadata
+    f.OculusFrameType = frameType
+    f.OculusIndex = index
+    f.auraInstanceID = nil
+
+    f:Hide()
+    return f
+end
+
+
+-- Ensure OculusBuffFrames/OculusDebuffFrames exist on a CompactUnitFrame
+local function EnsureAuraFrames(frame)
+    if not frame then return false end
+    if InCombatLockdown() then
+        frame.OculusAuraFramesPending = true
+        return false
+    end
+
+    local config = BuildConfig()
+    local maxBuffs = config.Buff.MaxCount or DEFAULTS.Buff.MaxCount
+
+    -- Create buff frames if not yet created or count changed
+    if not frame.OculusBuffFrames or #frame.OculusBuffFrames < maxBuffs then
+        frame.OculusBuffFrames = frame.OculusBuffFrames or {}
+        for i = #frame.OculusBuffFrames + 1, maxBuffs do
+            frame.OculusBuffFrames[i] = CreateAuraIconFrame(frame, i, "Buff")
+        end
+    end
+
+    -- Create debuff frames
+    if not frame.OculusDebuffFrames or #frame.OculusDebuffFrames < MAX_DEBUFF_FRAMES then
+        frame.OculusDebuffFrames = frame.OculusDebuffFrames or {}
+        for i = #frame.OculusDebuffFrames + 1, MAX_DEBUFF_FRAMES do
+            frame.OculusDebuffFrames[i] = CreateAuraIconFrame(frame, i, "Debuff")
+        end
+    end
+
+    frame.OculusAuraFramesPending = nil
+    return true
+end
+
+
+-- Query auras from C_UnitAuras API
+local function QueryUnitAuras(unit, filter)
+    local auras = {}
+    local success = pcall(function()
+        local function handleSlots(continuationToken, ...)
+            for i = 1, select("#", ...) do
+                local slot = select(i, ...)
+                local auraData = C_UnitAuras.GetAuraDataBySlot(unit, slot)
+                if auraData then
+                    auras[#auras + 1] = auraData
+                end
+            end
+            return continuationToken
+        end
+
+        local continuationToken = handleSlots(C_UnitAuras.GetAuraSlots(unit, filter))
+        while continuationToken do
+            continuationToken = handleSlots(C_UnitAuras.GetAuraSlots(unit, filter, nil, continuationToken))
+        end
+    end)
+
+    if not success then
+        return {}
+    end
+    return auras
+end
+
+
+-- Debuff type to color mapping
+local DEBUFF_TYPE_COLORS = {
+    Magic   = { 0.20, 0.60, 1.00 },
+    Curse   = { 0.60, 0.00, 1.00 },
+    Disease = { 0.60, 0.40, 0.00 },
+    Poison  = { 0.00, 0.60, 0.00 },
+}
+
+
+-- Fetch aura data and render to custom frames
+local function FetchAndRenderAuras(frame)
+    if not frame or not frame.unit then return end
+    if not frame.healthBar then return end
+
+    -- Skip nameplates
+    local unit = frame.unit
+    if unit and unit:match("^nameplate") then return end
+
+    -- Ensure custom frames exist
+    if not frame.OculusBuffFrames then
+        if not EnsureAuraFrames(frame) then return end
+    end
+
+    local configuration = BuildConfig()
+    local maxBuffs = configuration.Buff.MaxCount or DEFAULTS.Buff.MaxCount
+    local buffsPerRow = configuration.Buff.PerRow
+    local buffAnchor = configuration.Buff.Anchor
+    local buffSpacing = configuration.Buff.Spacing
+    local showBuffTimer = configuration.Buff.ShowTimer
+    local buffSize = DEFAULTS.Buff.Size
+
+    -- Query buffs
+    local buffs = QueryUnitAuras(unit, "HELPFUL")
+
+    -- Render buffs
+    local visibleIndex = 0
+    for i, auraFrame in ipairs(frame.OculusBuffFrames) do
+        local auraData = buffs[i]
+        if auraData and visibleIndex < maxBuffs then
+            -- Populate icon
+            pcall(function()
+                auraFrame.Icon:SetTexture(auraData.icon)
+            end)
+
+            -- Set size
+            pcall(function()
+                auraFrame:SetSize(buffSize, buffSize)
+            end)
+
+            -- Cooldown
+            pcall(function()
+                if auraData.duration and auraData.duration > 0 and auraData.expirationTime then
+                    auraFrame.cooldown:SetCooldown(auraData.expirationTime - auraData.duration, auraData.duration)
+                else
+                    auraFrame.cooldown:Clear()
+                end
+            end)
+
+            -- Stack count
+            pcall(function()
+                if auraData.applications and auraData.applications > 1 then
+                    auraFrame.count:SetText(auraData.applications)
+                    auraFrame.count:Show()
+                else
+                    auraFrame.count:Hide()
+                end
+            end)
+
+            -- Store aura data for timers
+            auraFrame.auraInstanceID = auraData.auraInstanceID
+            auraFrame.border:Hide()
+
+            -- Position
+            local col = visibleIndex % buffsPerRow
+            local row = math.floor(visibleIndex / buffsPerRow)
+            local xOffset, yOffset = Auras:CalculateAnchorOffset(
+                buffAnchor, col, row, buffSize, buffSpacing, buffsPerRow
+            )
+            auraFrame:ClearAllPoints()
+            auraFrame:SetPoint(buffAnchor, frame.healthBar, buffAnchor, xOffset, yOffset)
+
+            -- Timer, Masque, OnUpdate
+            InitializeTimer(auraFrame, showBuffTimer)
+            RegisterWithMasque(auraFrame)
+            if auraFrame.auraInstanceID then
+                SetupAuraOnUpdate(auraFrame, unit, auraFrame.auraInstanceID, configuration, showBuffTimer)
+            end
+
+            auraFrame:Show()
+            visibleIndex = visibleIndex + 1
+        else
+            -- Hide unused frames
+            auraFrame:Hide()
+            auraFrame.auraInstanceID = nil
+            if auraFrame.OculusOnUpdate then
+                auraFrame:SetScript("OnUpdate", nil)
+                auraFrame.OculusOnUpdate = nil
+            end
+            if auraFrame.OculusTimer then auraFrame.OculusTimer:Hide() end
+            if auraFrame.OculusExpiringBorder then auraFrame.OculusExpiringBorder:Hide() end
+        end
+    end
+
+    -- Query and render debuffs
+    local debuffs = QueryUnitAuras(unit, "HARMFUL")
+    local showDebuffTimer = configuration.Debuff.ShowTimer
+
+    for i, auraFrame in ipairs(frame.OculusDebuffFrames) do
+        local auraData = debuffs[i]
+        if auraData then
+            pcall(function()
+                auraFrame.Icon:SetTexture(auraData.icon)
+            end)
+
+            pcall(function()
+                auraFrame:SetSize(buffSize, buffSize)
+            end)
+
+            pcall(function()
+                if auraData.duration and auraData.duration > 0 and auraData.expirationTime then
+                    auraFrame.cooldown:SetCooldown(auraData.expirationTime - auraData.duration, auraData.duration)
+                else
+                    auraFrame.cooldown:Clear()
+                end
+            end)
+
+            pcall(function()
+                if auraData.applications and auraData.applications > 1 then
+                    auraFrame.count:SetText(auraData.applications)
+                    auraFrame.count:Show()
+                else
+                    auraFrame.count:Hide()
+                end
+            end)
+
+            -- Debuff type border color
+            local typeColor = DEBUFF_TYPE_COLORS[auraData.dispelName]
+            if typeColor then
+                auraFrame.border:SetVertexColor(typeColor[1], typeColor[2], typeColor[3])
+                auraFrame.border:Show()
+            else
+                auraFrame.border:SetVertexColor(0.80, 0, 0)
+                auraFrame.border:Show()
+            end
+
+            auraFrame.auraInstanceID = auraData.auraInstanceID
+            InitializeTimer(auraFrame, showDebuffTimer)
+
+            auraFrame:Show()
+        else
+            auraFrame:Hide()
+            auraFrame.auraInstanceID = nil
+        end
+    end
+end
+
+
+-- Build unit-to-frame mapping table
+local function BuildUnitFrameMap()
+    unitFrameMap = {}
+
+    -- Party frames
+    for i = 1, 5 do
+        local frame = _G["CompactPartyFrameMember" .. i]
+        if frame and frame.unit then
+            unitFrameMap[frame.unit] = frame
+        end
+    end
+
+    -- Party pet frames
+    for i = 1, 5 do
+        local petFrame = _G["CompactPartyFrameMemberPet" .. i]
+        if petFrame and petFrame.unit then
+            unitFrameMap[petFrame.unit] = petFrame
+        end
+    end
+
+    -- Raid frames
+    if CompactRaidFrameContainer then
+        CompactRaidFrameContainer:ApplyToFrames("normal", function(frame)
+            if frame and frame.unit then
+                unitFrameMap[frame.unit] = frame
+            end
+        end)
+    end
+
+    unitFrameMapDirty = false
+end
+
+
+-- Find CompactUnitFrame for a given unit ID
+local function FindFrameForUnit(unit)
+    if unitFrameMapDirty then
+        BuildUnitFrameMap()
+    end
+
+    local frame = unitFrameMap[unit]
+    if frame and frame.unit == unit then
+        return frame
+    end
+
+    -- Cache miss — rebuild and retry
+    BuildUnitFrameMap()
+    return unitFrameMap[unit]
+end
+
 
 -- Initialize expiring border for an aura frame (combat-safe with pcall)
 local borderCreationCount = 0
@@ -510,11 +828,13 @@ end
 local function PreCreateTimers(frame)
     if not frame then return end
 
+    EnsureAuraFrames(frame)
+
     local config = BuildConfig()
     local showBuffTimer = config.Buff.ShowTimer
 
-    if frame.buffFrames then
-        for i, buff in ipairs(frame.buffFrames) do
+    if frame.OculusBuffFrames then
+        for i, buff in ipairs(frame.OculusBuffFrames) do
             InitializeTimer(buff, showBuffTimer)
         end
     end
@@ -648,87 +968,8 @@ function Auras:ApplySettings(frame)
         end
     end
 
-    -- Apply buff settings - always reposition to prevent overlap
-    if frame.buffFrames then
-        local buffsPerRow = configuration.Buff.PerRow
-        local buffAnchor = configuration.Buff.Anchor
-        local useCustomPosition = configuration.Buff.UseCustomPosition
-        local buffSpacing = configuration.Buff.Spacing
-        local maxBuffs = configuration.Buff.MaxCount or 9
-
-        -- Count visible buffs for proper layout
-        local visibleCount = 0
-        for i, buff in ipairs(frame.buffFrames) do
-            if buff:IsShown() then
-                visibleCount = visibleCount + 1
-            end
-        end
-
-        local visibleIndex = 0
-        for i, buff in ipairs(frame.buffFrames) do
-            local shouldShow = buff:IsShown() and visibleIndex < maxBuffs
-
-            -- Set fixed buff icon size
-            pcall(function()
-                buff:SetSize(BUFF_SIZE, BUFF_SIZE)
-            end)
-
-            -- Hide buffs exceeding MaxCount (only when not in combat)
-            if not inCombat then
-                if buff:IsShown() and visibleIndex >= maxBuffs then
-                    buff:Hide()
-                end
-            end
-
-            -- Always reposition shown buffs (works in combat)
-            if shouldShow then
-                local col = visibleIndex % buffsPerRow
-                local row = math.floor(visibleIndex / buffsPerRow)
-                local xOffset, yOffset = self:CalculateAnchorOffset(
-                    buffAnchor, col, row, BUFF_SIZE, buffSpacing, buffsPerRow
-                )
-
-                buff:ClearAllPoints()
-                -- Anchor to healthBar to keep buffs inside frame boundary
-                buff:SetPoint(buffAnchor, frame.healthBar, buffAnchor, xOffset, yOffset)
-                visibleIndex = visibleIndex + 1
-            end
-
-            if shouldShow then
-                -- Force apply timer setting (Blizzard can reset it)
-                local showBuffTimer = configuration.Buff.ShowTimer
-                InitializeTimer(buff, showBuffTimer)
-
-                RegisterWithMasque(buff)
-                -- Setup OnUpdate script for self-managed timer
-                if buff.auraInstanceID then
-                    SetupAuraOnUpdate(buff, unit, buff.auraInstanceID, configuration, showBuffTimer)
-                end
-            else
-                -- Clear OnUpdate and stale data when hidden
-                if buff.OculusOnUpdate then
-                    buff:SetScript("OnUpdate", nil)
-                    buff.OculusOnUpdate = nil
-                end
-                buff.OculusUnit = nil
-                buff.OculusAuraInstanceID = nil
-                buff.OculusConfig = nil
-                buff.OculusFontSize = nil
-                if buff.OculusTimer then buff.OculusTimer:Hide() end
-                if buff.OculusExpiringBorder then buff.OculusExpiringBorder:Hide() end
-            end
-        end
-    end
-
-    -- Apply debuff timer setting
-    if frame.debuffFrames then
-        local showDebuffTimer = configuration.Debuff.ShowTimer
-        for _, debuff in ipairs(frame.debuffFrames) do
-            if debuff:IsShown() then
-                InitializeTimer(debuff, showDebuffTimer)
-            end
-        end
-    end
+    -- Apply aura display (custom rendering — 12.0.5 removed frame.buffFrames/debuffFrames)
+    FetchAndRenderAuras(frame)
 end
 
 -- Update timers and borders for all aura frames (called by ticker)
@@ -782,8 +1023,8 @@ function Auras:UpdateTimers()
         end
 
         -- Enforce timer visibility settings (continuously)
-        if frame.buffFrames and not configuration.Buff.ShowTimer then
-            for _, buff in ipairs(frame.buffFrames) do
+        if frame.OculusBuffFrames and not configuration.Buff.ShowTimer then
+            for _, buff in ipairs(frame.OculusBuffFrames) do
                 if buff:IsShown() then
                     local cooldown = buff.cooldown or buff.Cooldown
                     if cooldown then
@@ -794,8 +1035,8 @@ function Auras:UpdateTimers()
         end
 
         -- Update buff timers and borders
-        if frame.buffFrames then
-            for i, buff in ipairs(frame.buffFrames) do
+        if frame.OculusBuffFrames then
+            for i, buff in ipairs(frame.OculusBuffFrames) do
                 if buff:IsShown() and buff.auraInstanceID then
                     -- Update border for tracked spells
                     if buff.OculusExpiringBorder then
@@ -968,39 +1209,44 @@ function Auras:Enable()
         LogDebug(string.format("  Initial combat state: %s", tostring(inCombat)))
     end
 
-    -- Hook CompactUnitFrame_UpdateAuras to run immediately after Blizzard's code
-    -- 12.0.5+: global functions converted to CompactUnitFrameMixin methods
-    if not self.Hooked then
-        if _G["CompactUnitFrame_UpdateAuras"] then
-            hooksecurefunc("CompactUnitFrame_UpdateAuras", function(frame)
-                if isEnabled and frame and frame.unit then
-                    Auras:ApplySettings(frame)
+    -- 12.0.5: CompactUnitFrame_UpdateAuras and CompactUnitFrameMixin removed.
+    -- Use UNIT_AURA event as primary aura update driver.
+    if not self.AuraEventFrame then
+        self.AuraEventFrame = CreateFrame("Frame")
+        self.AuraEventFrame:RegisterEvent("UNIT_AURA")
+        self.AuraEventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+        self.AuraEventFrame:SetScript("OnEvent", function(_, event, ...)
+            if not isEnabled then return end
+            if event == "UNIT_AURA" then
+                local unit = ...
+                if not unit then return end
+                if unit:match("^nameplate") then return end
+                local frame = FindFrameForUnit(unit)
+                if frame then
+                    FetchAndRenderAuras(frame)
                 end
-            end)
-        elseif CompactUnitFrameMixin and CompactUnitFrameMixin.UpdateAuras then
-            hooksecurefunc(CompactUnitFrameMixin, "UpdateAuras", function(frame)
-                if isEnabled and frame and frame.unit then
-                    Auras:ApplySettings(frame)
-                end
-            end)
-        end
+            elseif event == "GROUP_ROSTER_UPDATE" then
+                unitFrameMapDirty = true
+                C_Timer.After(0.2, function()
+                    if isEnabled then
+                        Auras:RefreshAllFrames()
+                    end
+                end)
+            end
+        end)
+        LogDebug("UNIT_AURA event listener registered (12.0.5 custom aura renderer)")
+    end
 
-        -- Hook CompactUnitFrame_SetUnit to catch frame reinitializations
-        -- (e.g. stealth/feign death combat drop causes full frame reset via this path)
+    -- Hook CompactUnitFrame_SetUnit if available (catches frame reinitializations)
+    if not self.Hooked then
         if _G["CompactUnitFrame_SetUnit"] then
             hooksecurefunc("CompactUnitFrame_SetUnit", function(frame)
                 if isEnabled and frame and frame.unit then
-                    Auras:ApplySettings(frame)
-                end
-            end)
-        elseif CompactUnitFrameMixin and CompactUnitFrameMixin.SetUnit then
-            hooksecurefunc(CompactUnitFrameMixin, "SetUnit", function(frame)
-                if isEnabled and frame and frame.unit then
+                    unitFrameMapDirty = true
                     Auras:ApplySettings(frame)
                 end
             end)
         end
-
         self.Hooked = true
     end
 
@@ -1034,7 +1280,8 @@ function Auras:Enable()
             elseif event == "PLAYER_REGEN_ENABLED" then
                 -- Leaving combat
                 inCombat = false
-                -- Create borders for all frames (combat ended, safe now)
+                unitFrameMapDirty = true
+                -- Create aura frames and borders for all frames (combat ended, safe now)
                 if isEnabled then
                     C_Timer.After(0.1, function()
                         if isEnabled then
@@ -1141,6 +1388,16 @@ function Auras:Disable()
         end
     end
 
+    -- Stop UNIT_AURA event listener
+    if self.AuraEventFrame then
+        self.AuraEventFrame:UnregisterAllEvents()
+        LogDebug("UNIT_AURA event listener stopped")
+    end
+
+    -- Clear unit-frame mapping
+    unitFrameMap = {}
+    unitFrameMapDirty = true
+
     -- Stop update ticker
     if self.UpdateTicker then
         self.UpdateTicker:Cancel()
@@ -1211,7 +1468,9 @@ local TEST_DEBUFFS = {
 
 -- Create test auras on frames for preview mode
 local function CreateTestAuras(frame)
-    if not frame or not frame.buffFrames or not frame.debuffFrames then return end
+    if not frame then return end
+    EnsureAuraFrames(frame)
+    if not frame.OculusBuffFrames or not frame.OculusDebuffFrames then return end
 
     local config = BuildConfig()
     local maxBuffs = math.min(6, config.Buff.MaxCount or 9)
@@ -1219,21 +1478,19 @@ local function CreateTestAuras(frame)
 
     -- Create test buffs
     for i = 1, maxBuffs do
-        local buff = frame.buffFrames[i]
+        local buff = frame.OculusBuffFrames[i]
         if buff then
             local testBuff = TEST_BUFFS[((i - 1) % #TEST_BUFFS) + 1]
-            if buff.icon or buff.Icon then
-                local iconTexture = buff.icon or buff.Icon
-                iconTexture:SetTexture(testBuff.icon)
+            if buff.Icon then
+                buff.Icon:SetTexture(testBuff.icon)
             end
 
             -- Set fake cooldown and expiration time
             local duration = 30 + (i * 10)
             local expirationTime = GetTime() + duration
 
-            if buff.cooldown or buff.Cooldown then
-                local cooldown = buff.cooldown or buff.Cooldown
-                cooldown:SetCooldown(expirationTime - duration, duration)
+            if buff.cooldown then
+                buff.cooldown:SetCooldown(expirationTime - duration, duration)
             end
 
             -- Store expiration time for auto-hide
@@ -1261,12 +1518,11 @@ local function CreateTestAuras(frame)
 
     -- Create test debuffs
     for i = 1, maxDebuffs do
-        local debuff = frame.debuffFrames[i]
+        local debuff = frame.OculusDebuffFrames[i]
         if debuff then
             local testDebuff = TEST_DEBUFFS[((i - 1) % #TEST_DEBUFFS) + 1]
-            if debuff.icon or debuff.Icon then
-                local iconTexture = debuff.icon or debuff.Icon
-                iconTexture:SetTexture(testDebuff.icon)
+            if debuff.Icon then
+                debuff.Icon:SetTexture(testDebuff.icon)
             end
 
             -- Set border color based on dispel type
@@ -1279,9 +1535,8 @@ local function CreateTestAuras(frame)
             local duration = 20 + (i * 5)
             local expirationTime = GetTime() + duration
 
-            if debuff.cooldown or debuff.Cooldown then
-                local cooldown = debuff.cooldown or debuff.Cooldown
-                cooldown:SetCooldown(expirationTime - duration, duration)
+            if debuff.cooldown then
+                debuff.cooldown:SetCooldown(expirationTime - duration, duration)
             end
 
             -- Store expiration time for auto-hide
@@ -1313,39 +1568,26 @@ end
 local function ClearTestAuras(frame)
     if not frame then return end
 
-    -- Restore buff tooltips and hide
-    if frame.buffFrames then
-        for i, buff in ipairs(frame.buffFrames) do
-            -- Clear test scripts and data
+    -- Clear custom buff frames
+    if frame.OculusBuffFrames then
+        for i, buff in ipairs(frame.OculusBuffFrames) do
             buff:SetScript("OnUpdate", nil)
+            buff:SetScript("OnEnter", nil)
+            buff:SetScript("OnLeave", nil)
             buff.testExpirationTime = nil
-
-            -- Restore original Blizzard tooltip handlers
-            if CompactUnitFrameBuff_OnEnter then
-                buff:SetScript("OnEnter", CompactUnitFrameBuff_OnEnter)
-            end
-            if CompactUnitFrameBuff_OnLeave then
-                buff:SetScript("OnLeave", CompactUnitFrameBuff_OnLeave)
-            end
             buff.auraInstanceID = nil
+            buff.OculusOnUpdate = nil
             buff:Hide()
         end
     end
 
-    -- Restore debuff tooltips and hide
-    if frame.debuffFrames then
-        for i, debuff in ipairs(frame.debuffFrames) do
-            -- Clear test scripts and data
+    -- Clear custom debuff frames
+    if frame.OculusDebuffFrames then
+        for i, debuff in ipairs(frame.OculusDebuffFrames) do
             debuff:SetScript("OnUpdate", nil)
+            debuff:SetScript("OnEnter", nil)
+            debuff:SetScript("OnLeave", nil)
             debuff.testExpirationTime = nil
-
-            -- Restore original Blizzard tooltip handlers
-            if CompactUnitFrameDebuff_OnEnter then
-                debuff:SetScript("OnEnter", CompactUnitFrameDebuff_OnEnter)
-            end
-            if CompactUnitFrameDebuff_OnLeave then
-                debuff:SetScript("OnLeave", CompactUnitFrameDebuff_OnLeave)
-            end
             debuff.auraInstanceID = nil
             debuff:Hide()
         end
