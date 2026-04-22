@@ -384,25 +384,6 @@ local DEBUFF_TYPE_COLORS = {
 }
 
 
--- Filter: should this buff be shown on raid/party frames?
--- Replicates Blizzard's CompactUnitFrame buff filtering logic
--- Uses pcall to handle potential secret value booleans in 12.0.5
-local function ShouldDisplayBuff(auraData)
-    if not auraData then return false end
-    local success, result = pcall(function()
-        if auraData.isBossAura then return true end
-        if auraData.isFromPlayerOrPlayerPet then return true end
-        if auraData.isRaid then return true end
-        if auraData.nameplateShowAll and not auraData.isNameplateOnly then return true end
-        if auraData.isTankRoleAura or auraData.isHealerRoleAura or auraData.isDPSRoleAura then return true end
-        return false
-    end)
-    -- If pcall fails (secret value), show the buff to be safe
-    if not success then return true end
-    return result
-end
-
-
 -- Fetch aura data and render to custom frames
 local function FetchAndRenderAuras(frame)
     if not frame or not frame.unit then return end
@@ -425,14 +406,8 @@ local function FetchAndRenderAuras(frame)
     local showBuffTimer = configuration.Buff.ShowTimer
     local buffSize = DEFAULTS.Buff.Size
 
-    -- Query buffs and filter for raid-relevant ones
-    local allBuffs = QueryUnitAuras(unit, "HELPFUL")
-    local buffs = {}
-    for _, auraData in ipairs(allBuffs) do
-        if ShouldDisplayBuff(auraData) then
-            buffs[#buffs + 1] = auraData
-        end
-    end
+    -- Query raid-relevant buffs only (server-side filter via "RAID" flag)
+    local buffs = QueryUnitAuras(unit, "HELPFUL|RAID")
 
     -- Render buffs
     local visibleIndex = 0
