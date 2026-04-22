@@ -325,6 +325,27 @@ SlashCmdList["OCULUSRF"] = function(msg)
             end
         end
 
+        -- List all children of CompactPartyFrameMember1
+        if frame then
+            logger:Log("RaidFrames", "Probe", "--- Children of CompactPartyFrameMember1 ---")
+            pcall(function()
+                local children = { frame:GetChildren() }
+                for idx, child in ipairs(children) do
+                    local cName = child:GetName() or "(unnamed)"
+                    local cType = child:GetObjectType() or "?"
+                    local cShown = "?"
+                    pcall(function() cShown = tostring(child:IsShown()) end)
+                    local w, h = 0, 0
+                    pcall(function() w, h = child:GetSize() end)
+                    logger:Log("RaidFrames", "Probe", string.format(
+                        "  [%d] %s type=%s shown=%s size=%.0fx%.0f",
+                        idx, cName, cType, cShown, w, h
+                    ))
+                end
+                logger:Log("RaidFrames", "Probe", "Total children: " .. #children)
+            end)
+        end
+
         logger:Log("RaidFrames", "Probe", "=== Probe complete ===")
     elseif command == "inspect" or command == "debuff" then
         local logger = Oculus and Oculus.Logger
