@@ -394,14 +394,37 @@ local function FetchAndRenderAuras(frame)
     if unit and unit:match("^nameplate") then return end
 
     -- Suppress Blizzard's C++ aura rendering to prevent overlap
-    if not frame.OculusBlizzardAurasHidden then
-        pcall(function()
-            frame.maxBuffs = 0
-            frame.maxDebuffs = 0
-            frame.maxDispelDebuffs = 0
-        end)
-        frame.OculusBlizzardAurasHidden = true
-    end
+    pcall(function()
+        -- Disable via optionTable
+        if frame.optionTable then
+            frame.optionTable.displayBuffs = false
+            frame.optionTable.displayDebuffs = false
+            frame.optionTable.displayDispelDebuffs = false
+        end
+        -- Also set max counts to 0
+        frame.maxBuffs = 0
+        frame.maxDebuffs = 0
+        frame.maxDispelDebuffs = 0
+
+        -- Hide any existing Blizzard aura child frames
+        for i = 1, 20 do
+            local buffName = frame:GetName() and (frame:GetName() .. "Buff" .. i)
+            local debuffName = frame:GetName() and (frame:GetName() .. "Debuff" .. i)
+            local dispelName = frame:GetName() and (frame:GetName() .. "DispelDebuff" .. i)
+            if buffName then
+                local bf = _G[buffName]
+                if bf and not bf:IsForbidden() then bf:Hide() end
+            end
+            if debuffName then
+                local df = _G[debuffName]
+                if df and not df:IsForbidden() then df:Hide() end
+            end
+            if dispelName then
+                local dsf = _G[dispelName]
+                if dsf and not dsf:IsForbidden() then dsf:Hide() end
+            end
+        end
+    end)
 
     -- Ensure custom frames exist
     if not frame.OculusBuffFrames then
