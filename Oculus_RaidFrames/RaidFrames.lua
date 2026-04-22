@@ -258,6 +258,74 @@ SlashCmdList["OCULUSRF"] = function(msg)
         if addon.Auras and addon.Auras.ClearDebugLog then
             addon.Auras:ClearDebugLog()
         end
+    elseif command == "probe" then
+        -- 12.0.5 CompactUnitFrame 구조 진단
+        local logger = Oculus and Oculus.Logger
+        if not logger then return end
+        logger:Log("RaidFrames", "Probe", "=== 12.0.5 Frame Structure Probe ===")
+
+        -- Global function checks
+        logger:Log("RaidFrames", "Probe", "CompactUnitFrame_UpdateAuras: " .. tostring(type(_G["CompactUnitFrame_UpdateAuras"])))
+        logger:Log("RaidFrames", "Probe", "CompactUnitFrame_UpdateAll: " .. tostring(type(_G["CompactUnitFrame_UpdateAll"])))
+        logger:Log("RaidFrames", "Probe", "CompactUnitFrame_SetUnit: " .. tostring(type(_G["CompactUnitFrame_SetUnit"])))
+        logger:Log("RaidFrames", "Probe", "CompactUnitFrame_UpdateInRange: " .. tostring(type(_G["CompactUnitFrame_UpdateInRange"])))
+        logger:Log("RaidFrames", "Probe", "CompactUnitFrameMixin: " .. tostring(type(CompactUnitFrameMixin)))
+
+        -- Party frame inspection
+        local frame = _G["CompactPartyFrameMember1"]
+        if frame then
+            logger:Log("RaidFrames", "Probe", "--- CompactPartyFrameMember1 ---")
+            logger:Log("RaidFrames", "Probe", "unit: " .. tostring(frame.unit))
+            logger:Log("RaidFrames", "Probe", "healthBar: " .. tostring(frame.healthBar ~= nil))
+            logger:Log("RaidFrames", "Probe", "buffFrames: " .. tostring(frame.buffFrames ~= nil))
+            if frame.buffFrames then
+                logger:Log("RaidFrames", "Probe", "buffFrames count: " .. tostring(#frame.buffFrames))
+                local bf1 = frame.buffFrames[1]
+                if bf1 then
+                    logger:Log("RaidFrames", "Probe", "buffFrames[1].icon: " .. tostring(bf1.icon ~= nil) .. " / .Icon: " .. tostring(bf1.Icon ~= nil))
+                    logger:Log("RaidFrames", "Probe", "buffFrames[1].cooldown: " .. tostring(bf1.cooldown ~= nil) .. " / .Cooldown: " .. tostring(bf1.Cooldown ~= nil))
+                    logger:Log("RaidFrames", "Probe", "buffFrames[1].auraInstanceID: " .. tostring(bf1.auraInstanceID))
+                    logger:Log("RaidFrames", "Probe", "buffFrames[1]:IsShown(): " .. tostring(pcall(function() return bf1:IsShown() end)))
+                end
+            end
+            logger:Log("RaidFrames", "Probe", "debuffFrames: " .. tostring(frame.debuffFrames ~= nil))
+            if frame.debuffFrames then
+                logger:Log("RaidFrames", "Probe", "debuffFrames count: " .. tostring(#frame.debuffFrames))
+            end
+            logger:Log("RaidFrames", "Probe", "dispelDebuffFrames: " .. tostring(frame.dispelDebuffFrames ~= nil))
+            logger:Log("RaidFrames", "Probe", "DispelOverlay: " .. tostring(frame.DispelOverlay ~= nil))
+            if frame.DispelOverlay then
+                local ok, forbidden = pcall(function() return frame.DispelOverlay:IsForbidden() end)
+                logger:Log("RaidFrames", "Probe", "DispelOverlay:IsForbidden(): " .. tostring(ok and forbidden))
+            end
+
+            -- Instance method checks
+            logger:Log("RaidFrames", "Probe", "frame.UpdateAll: " .. tostring(type(frame.UpdateAll)))
+            logger:Log("RaidFrames", "Probe", "frame.UpdateAuras: " .. tostring(type(frame.UpdateAuras)))
+            logger:Log("RaidFrames", "Probe", "frame.SetUnit: " .. tostring(type(frame.SetUnit)))
+        else
+            logger:Log("RaidFrames", "Probe", "CompactPartyFrameMember1: NOT FOUND (파티에 참가하세요)")
+        end
+
+        -- Raid frame inspection
+        if CompactRaidFrameContainer then
+            local raidFrame = nil
+            CompactRaidFrameContainer:ApplyToFrames("normal", function(f)
+                if not raidFrame and f and f.unit then
+                    raidFrame = f
+                end
+            end)
+            if raidFrame then
+                logger:Log("RaidFrames", "Probe", "--- First RaidFrame ---")
+                logger:Log("RaidFrames", "Probe", "unit: " .. tostring(raidFrame.unit))
+                logger:Log("RaidFrames", "Probe", "buffFrames: " .. tostring(raidFrame.buffFrames ~= nil))
+                if raidFrame.buffFrames then
+                    logger:Log("RaidFrames", "Probe", "buffFrames count: " .. tostring(#raidFrame.buffFrames))
+                end
+            end
+        end
+
+        logger:Log("RaidFrames", "Probe", "=== Probe complete ===")
     elseif command == "inspect" or command == "debuff" then
         local logger = Oculus and Oculus.Logger
         if not logger then return end
@@ -271,7 +339,7 @@ SlashCmdList["OCULUSRF"] = function(msg)
         end
     else
         if Oculus and Oculus.Logger then
-            Oculus.Logger:Log("RaidFrames", nil, "Commands: debug | enable | refresh | timer | log | clearlog | inspect")
+            Oculus.Logger:Log("RaidFrames", nil, "Commands: debug | enable | refresh | timer | log | clearlog | inspect | probe")
         end
     end
 end
