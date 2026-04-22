@@ -384,6 +384,24 @@ local DEBUFF_TYPE_COLORS = {
 }
 
 
+-- Filter: should this buff be shown on raid/party frames?
+-- Replicates Blizzard's CompactUnitFrame buff filtering logic
+local function ShouldDisplayBuff(auraData)
+    if not auraData then return false end
+    -- Always show boss auras
+    if auraData.isBossAura then return true end
+    -- Show buffs cast by the player
+    if auraData.isFromPlayerOrPlayerPet then return true end
+    -- Show raid-relevant buffs (e.g. Mark of the Wild, Power Word: Fortitude)
+    if auraData.isRaid then return true end
+    -- Show auras flagged for nameplate display on all units
+    if auraData.nameplateShowAll and not auraData.isNameplateOnly then return true end
+    -- Show tank/healer/DPS role auras
+    if auraData.isTankRoleAura or auraData.isHealerRoleAura or auraData.isDPSRoleAura then return true end
+    return false
+end
+
+
 -- Fetch aura data and render to custom frames
 local function FetchAndRenderAuras(frame)
     if not frame or not frame.unit then return end
@@ -406,8 +424,14 @@ local function FetchAndRenderAuras(frame)
     local showBuffTimer = configuration.Buff.ShowTimer
     local buffSize = DEFAULTS.Buff.Size
 
-    -- Query buffs
-    local buffs = QueryUnitAuras(unit, "HELPFUL")
+    -- Query buffs and filter for raid-relevant ones
+    local allBuffs = QueryUnitAuras(unit, "HELPFUL")
+    local buffs = {}
+    for _, auraData in ipairs(allBuffs) do
+        if ShouldDisplayBuff(auraData) then
+            buffs[#buffs + 1] = auraData
+        end
+    end
 
     -- Render buffs
     local visibleIndex = 0
