@@ -393,6 +393,16 @@ local function FetchAndRenderAuras(frame)
     local unit = frame.unit
     if unit and unit:match("^nameplate") then return end
 
+    -- Suppress Blizzard's C++ aura rendering to prevent overlap
+    if not frame.OculusBlizzardAurasHidden then
+        pcall(function()
+            frame.maxBuffs = 0
+            frame.maxDebuffs = 0
+            frame.maxDispelDebuffs = 0
+        end)
+        frame.OculusBlizzardAurasHidden = true
+    end
+
     -- Ensure custom frames exist
     if not frame.OculusBuffFrames then
         if not EnsureAuraFrames(frame) then return end
