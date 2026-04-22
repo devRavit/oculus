@@ -18,6 +18,7 @@ local C_Timer = C_Timer
 local C_UnitAuras = C_UnitAuras
 local hooksecurefunc = hooksecurefunc
 local CompactRaidFrameContainer = CompactRaidFrameContainer
+local CompactUnitFrameMixin = CompactUnitFrameMixin
 local InCombatLockdown = InCombatLockdown
 local EditModeManagerFrame = EditModeManagerFrame
 local STANDARD_TEXT_FONT = STANDARD_TEXT_FONT
@@ -962,20 +963,37 @@ function Auras:Enable()
     end
 
     -- Hook CompactUnitFrame_UpdateAuras to run immediately after Blizzard's code
+    -- 12.0.5+: global functions converted to CompactUnitFrameMixin methods
     if not self.Hooked then
-        hooksecurefunc("CompactUnitFrame_UpdateAuras", function(frame)
-            if isEnabled and frame and frame.unit then
-                Auras:ApplySettings(frame)
-            end
-        end)
+        if _G["CompactUnitFrame_UpdateAuras"] then
+            hooksecurefunc("CompactUnitFrame_UpdateAuras", function(frame)
+                if isEnabled and frame and frame.unit then
+                    Auras:ApplySettings(frame)
+                end
+            end)
+        elseif CompactUnitFrameMixin and CompactUnitFrameMixin.UpdateAuras then
+            hooksecurefunc(CompactUnitFrameMixin, "UpdateAuras", function(frame)
+                if isEnabled and frame and frame.unit then
+                    Auras:ApplySettings(frame)
+                end
+            end)
+        end
 
         -- Hook CompactUnitFrame_SetUnit to catch frame reinitializations
         -- (e.g. stealth/feign death combat drop causes full frame reset via this path)
-        hooksecurefunc("CompactUnitFrame_SetUnit", function(frame)
-            if isEnabled and frame and frame.unit then
-                Auras:ApplySettings(frame)
-            end
-        end)
+        if _G["CompactUnitFrame_SetUnit"] then
+            hooksecurefunc("CompactUnitFrame_SetUnit", function(frame)
+                if isEnabled and frame and frame.unit then
+                    Auras:ApplySettings(frame)
+                end
+            end)
+        elseif CompactUnitFrameMixin and CompactUnitFrameMixin.SetUnit then
+            hooksecurefunc(CompactUnitFrameMixin, "SetUnit", function(frame)
+                if isEnabled and frame and frame.unit then
+                    Auras:ApplySettings(frame)
+                end
+            end)
+        end
 
         self.Hooked = true
     end
@@ -983,10 +1001,17 @@ function Auras:Enable()
     -- CompactUnitFrame_UpdateCenterStatusIcon 훅으로 range 변경 시 반응
     -- BetterBlizzFrames와 동일한 패턴: 이 함수가 range check 이후 호출됨
     if not self.RangeFadeHooked then
-        hooksecurefunc("CompactUnitFrame_UpdateCenterStatusIcon", function(frame)
-            if not isEnabled then return end
-            ApplyRangeFade(frame)
-        end)
+        if _G["CompactUnitFrame_UpdateCenterStatusIcon"] then
+            hooksecurefunc("CompactUnitFrame_UpdateCenterStatusIcon", function(frame)
+                if not isEnabled then return end
+                ApplyRangeFade(frame)
+            end)
+        elseif CompactUnitFrameMixin and CompactUnitFrameMixin.UpdateCenterStatusIcon then
+            hooksecurefunc(CompactUnitFrameMixin, "UpdateCenterStatusIcon", function(frame)
+                if not isEnabled then return end
+                ApplyRangeFade(frame)
+            end)
+        end
         self.RangeFadeHooked = true
     end
 
