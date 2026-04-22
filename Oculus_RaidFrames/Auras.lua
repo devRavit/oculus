@@ -57,6 +57,10 @@ if Masque then
 end
 
 
+-- Forward declarations (defined later, referenced by FetchAndRenderAuras)
+local SetupAuraOnUpdate
+
+
 -- Constants (must match RaidFrames.lua DEFAULTS.Auras structure)
 local DEFAULTS = {
     Buff = {
@@ -735,7 +739,7 @@ local function ClearDebugLog()
 end
 
 -- Setup OnUpdate script for aura frame to manage expiring border
-local function SetupAuraOnUpdate(auraFrame, unit, auraInstanceID, config, showTimer)
+SetupAuraOnUpdate = function(auraFrame, unit, auraInstanceID, config, showTimer)
     if not auraFrame or not unit or not auraInstanceID then return end
 
     -- Initialize timer (Blizzard's built-in)
