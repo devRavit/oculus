@@ -207,11 +207,13 @@ function Container:render()
         for i = 1, renderCount do
             local aura = sortedBuffs[i]
             local btn = getOrCreateButton(self, self.buffButtons, i, buffSize)
+            local isTracked = false
+            pcall(function() isTracked = trackedSpells[aura.spellId] == true end)
             Button.setAura(btn, aura, {
                 isDebuff = false,
                 showTimer = buffShowTimer,
                 expiringThreshold = showExpiringBorder and expiringThreshold or nil,
-                tracked = trackedSpells[aura.spellId] == true,
+                tracked = isTracked,
                 filter = AuraUtil.AuraFilters.Helpful,
             })
 
@@ -246,11 +248,13 @@ function Container:render()
         for i = 1, renderCount do
             local aura = sortedDebuffs[i]
             local btn = getOrCreateButton(self, self.debuffButtons, i, debuffSize)
+            local isTracked = false
+            pcall(function() isTracked = trackedSpells[aura.spellId] == true end)
             Button.setAura(btn, aura, {
                 isDebuff = true,
                 showTimer = debuffShowTimer,
                 expiringThreshold = showExpiringBorder and expiringThreshold or nil,
-                tracked = trackedSpells[aura.spellId] == true,
+                tracked = isTracked,
                 filter = aura.isRaid and AuraUtil.AuraFilters.Raid or AuraUtil.AuraFilters.Harmful,
             })
 

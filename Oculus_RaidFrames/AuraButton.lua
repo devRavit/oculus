@@ -59,14 +59,18 @@ local function onUpdate(self, elapsed)
     self._oculusAccum = 0
 
     local expirationTime = self.expirationTime
-    if not expirationTime or expirationTime == 0 then
+    if not expirationTime then
         if self.Timer:GetText() ~= "" then self.Timer:SetText("") end
         self:SetScript("OnUpdate", nil)
         return
     end
 
-    local remaining = expirationTime - GetTime()
-    if remaining <= 0 then
+    local ok, remaining = pcall(function() return expirationTime - GetTime() end)
+    if not ok then return end
+
+    local expired = false
+    pcall(function() expired = remaining <= 0 end)
+    if expired then
         self.Timer:SetText("")
         if self.ExpiringBorder then self.ExpiringBorder:Hide() end
         self:SetScript("OnUpdate", nil)
@@ -74,20 +78,23 @@ local function onUpdate(self, elapsed)
     end
 
     if self._showTimer then
-        self.Timer:SetText(formatRemaining(remaining))
+        local ok2, text = pcall(formatRemaining, remaining)
+        if ok2 and text then self.Timer:SetText(text) end
     end
 
     local threshold = self._expiringThreshold
     local duration = self.duration
-    if self._tracked and threshold and duration and duration > 0 then
-        local isExpiring = (remaining / duration) <= threshold
-        if self.ExpiringBorder then
-            if isExpiring then
-                self.ExpiringBorder:Show()
-            else
-                self.ExpiringBorder:Hide()
+    if self._tracked and threshold and duration then
+        pcall(function()
+            local isExpiring = (remaining / duration) <= threshold
+            if self.ExpiringBorder then
+                if isExpiring then
+                    self.ExpiringBorder:Show()
+                else
+                    self.ExpiringBorder:Hide()
+                end
             end
-        end
+        end)
     end
 end
 
@@ -149,19 +156,24 @@ function Button.setAura(btn, aura, options)
     btn._tracked = options.tracked and true or false
     btn._oculusAccum = 0
 
-    local applications = aura.applications or 0
-    if applications > 1 then
-        btn.Count:SetText(applications >= 100 and "!!" or tostring(applications))
-        btn.Count:Show()
-    else
-        btn.Count:Hide()
-    end
+    local countShown = false
+    pcall(function()
+        local applications = aura.applications or 0
+        if applications > 1 then
+            btn.Count:SetText(applications >= 100 and "!!" or tostring(applications))
+            btn.Count:Show()
+            countShown = true
+        end
+    end)
+    if not countShown then btn.Count:Hide() end
 
-    local enabled = aura.expirationTime and aura.expirationTime ~= 0 and aura.duration and aura.duration > 0
+    local enabled = false
+    pcall(function()
+        enabled = (aura.expirationTime or 0) ~= 0 and (aura.duration or 0) > 0
+    end)
     if enabled then
-        local startTime = aura.expirationTime - aura.duration
         pcall(function()
-            btn.Cooldown:SetCooldown(startTime, aura.duration)
+            btn.Cooldown:SetCooldown(aura.expirationTime - aura.duration, aura.duration)
         end)
     else
         btn.Cooldown:Clear()
