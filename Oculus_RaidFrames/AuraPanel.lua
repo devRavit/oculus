@@ -330,20 +330,10 @@ end
 
 
 -- Hide Blizzard defaults --------------------------------------------------
-local function ApplyBlizzardHide(parentFrame, config)
-    if not parentFrame or InCombatLockdown() then return end
-    if parentFrame:IsForbidden() then return end
-
-    -- Buff: optionTable 직접 쓰기 (Lua 테이블, taint 없음)
-    if parentFrame.optionTable then
-        if config.HideBlizzardBuffs then
-            parentFrame.optionTable.displayBuffs = false
-        else
-            parentFrame.optionTable.displayBuffs = true
-        end
-    end
-end
-
+-- CVar 만 사용 (secure → taint 0). optionTable 직접 쓰기는 안 함:
+-- frame.optionTable 변경 시 Blizzard 의 후속 UpdateAll/UpdateHealPrediction 에서
+-- secret 값 비교가 우리 taint 컨텍스트에서 실행되어 maxHealth 비교 에러 발생.
+-- 따라서 디버프만 CVar 로 끄고, 버프는 그대로 두고 우리 overlay 가 위에 그림.
 local function ApplyDebuffCVar(config)
     if InCombatLockdown() then return end
     pcall(function()
@@ -360,7 +350,6 @@ function AuraPanel:RefreshFrame(parentFrame)
     local config = GetConfig()
     if not config then return end
 
-    ApplyBlizzardHide(parentFrame, config)
     UpdatePanel(parentFrame)
 end
 
@@ -447,15 +436,9 @@ function AuraPanel:Disable()
     isEnabled = false
     self.IsEnabled = false
 
-    -- Blizzard 기본 표시 복원
+    -- Blizzard 디버프 복원 (CVar 만)
     if not InCombatLockdown() then
         pcall(function() SetCVar("raidFramesDisplayDebuffs", "1") end)
-        for i = 1, 5 do
-            local f = _G["CompactPartyFrameMember" .. i]
-            if f and not f:IsForbidden() and f.optionTable then
-                f.optionTable.displayBuffs = true
-            end
-        end
     end
 
     -- 우리 패널 숨김

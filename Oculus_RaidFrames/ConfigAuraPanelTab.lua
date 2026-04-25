@@ -74,13 +74,10 @@ function AuraPanelTab:Populate(parent, controls, helpers)
         end
     end)
 
+    -- 디버프만 CVar 로 끔 (taint 0). 버프 숨김은 12.0.5 에서 taint 없이 불가능 → 옵션 제외.
     local hideBlizzDebuffsCb = createCheckboxRow(parent, "HideBlizzardDebuffs", "Hide Blizzard Default Debuffs", true)
     controls.HideBlizzardDebuffsCheckbox = hideBlizzDebuffsCb
     hideBlizzDebuffsCb:SetScript("OnClick", MakeCheckboxCallback(getFullStorage, isInitializing, nil, "HideBlizzardDebuffs"))
-
-    local hideBlizzBuffsCb = createCheckboxRow(parent, "HideBlizzardBuffs", "Hide Blizzard Default Buffs", true)
-    controls.HideBlizzardBuffsCheckbox = hideBlizzBuffsCb
-    hideBlizzBuffsCb:SetScript("OnClick", MakeCheckboxCallback(getFullStorage, isInitializing, nil, "HideBlizzardBuffs"))
 
     -- ============================================
     -- Debuff Filters
@@ -190,9 +187,6 @@ function AuraPanelTab:Refresh(controls, configuration)
     end
     if controls.HideBlizzardDebuffsCheckbox then
         controls.HideBlizzardDebuffsCheckbox:SetChecked(ap.HideBlizzardDebuffs ~= false)
-    end
-    if controls.HideBlizzardBuffsCheckbox then
-        controls.HideBlizzardBuffsCheckbox:SetChecked(ap.HideBlizzardBuffs ~= false)
     end
 
     -- Debuff
