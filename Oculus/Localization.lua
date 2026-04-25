@@ -47,7 +47,7 @@ LOCALES["enUS"] = {
 
     -- Module Descriptions
     ["Unit Frames Desc"] = "Player/Target/Focus buff/debuff filter",
-    ["Raid Frames Desc"] = "Party buff/debuff + cooldown tracking + enemy cast alert",
+    ["Raid Frames Desc"] = "Frame visibility, range fade, party scale",
     ["Arena Frames Desc"] = "Arena frame sorting + buff/debuff filter",
     ["General Module Desc"] = "Reposition Blizzard frames (Totem Bar, Druid Bar)",
 
@@ -110,68 +110,19 @@ LOCALES["enUS"] = {
     ["No"] = "No",
 
     -- RaidFrames Config
-    ["Aura Display"] = "Aura Display",
-    ["Aura Display Desc"] = "Configure buff and debuff icon display on raid frames.",
     ["Frame Settings"] = "Frame Settings",
     ["Hide Role Icon"] = "Hide Role Icon",
     ["Hide Name"] = "Hide Name",
     ["Hide Aggro Overlay"] = "Hide Aggro Overlay",
     ["Hide Party Title"] = "Hide Party Title",
+    ["Hide Dispel Overlay"] = "Hide Dispel Overlay",
     ["Range Settings"] = "Range Settings",
     ["Range Fade"] = "Range Fade",
     ["Range Fade Min Opacity (%)"] = "Min Opacity (%)",
-    ["Buff Settings"] = "Buff Settings",
-    ["Debuff Settings"] = "Debuff Settings",
-    ["Timer Settings"] = "Timer Settings",
-    ["Buff Icon Size"] = "Buff Icon Size",
-    ["Debuff Icon Size"] = "Debuff Icon Size",
-    ["Hide Dispel Overlay"] = "Hide Dispel Overlay",
-    ["Hide Dispel Border"] = "Hide Dispel Border",
-    ["Dispel Border Size"] = "Dispel Border Size",
-    ["Show Duration Timer"] = "Show Duration Timer",
-    ["Expiring Border Size"] = "Expiring Border Size",
-    ["Timer Font Size"] = "Timer Font Size",
-    ["Expiring Warning (%)"] = "Expiring Warning (%)",
-    ["Actions"] = "Actions",
-    ["Preview Mode"] = "Preview Mode",
     ["Reset to Defaults"] = "Reset to Defaults",
-    ["Preview Not Available"] = "Preview not available yet",
-    ["Settings Reset"] = "RaidFrames settings reset to defaults",
     ["Reset Confirm"] = "Reset RaidFrames settings to defaults?",
     ["Reset"] = "Reset",
     ["Cancel"] = "Cancel",
-
-    -- RaidFrames Tooltips
-    ["Tooltip Buff Size"] = "Size of buff icons displayed on raid frames.",
-    ["Tooltip Debuff Size"] = "Size of debuff icons displayed on raid frames.",
-    ["Tooltip Hide Dispel Overlay"] = "Hide the dispel overlay on party/raid frames when you can dispel a debuff.",
-    ["Tooltip Hide Dispel Border"] = "Hide the colored border that indicates debuff type (Magic, Disease, Poison, Curse). When unchecked, borders will be enlarged for better visibility.",
-    ["Tooltip Show Timer"] = "Display remaining time on aura icons.",
-    ["Tooltip Expiring Warning"] = "When remaining duration falls below this percentage, show a red glow warning.",
-
-    -- Tracked Spells
-    ["Tracked Spells"] = "Tracked Spells",
-    ["Tracked Spells Desc"] = "Spells that will show a flashing border when duration falls below threshold.",
-    ["Add Spell ID"] = "Add Spell ID",
-    ["Enter Spell ID"] = "Enter Spell ID...",
-    ["Add"] = "Add",
-    ["Remove"] = "Remove",
-    ["No Tracked Spells"] = "No spells tracked. Add a spell ID above.",
-
-    -- RaidFrames Tab/Category Names
-    ["Buff Icon Settings"] = "Buff Icon Settings",
-
-    -- RaidFrames Layout Settings
-    ["Max Buffs"] = "Max Buffs",
-    ["Max Debuffs"] = "Max Debuffs",
-    ["Buffs Per Row"] = "Buffs Per Row",
-    ["Debuffs Per Row"] = "Debuffs Per Row",
-    ["Buff Anchor"] = "Buff Position",
-    ["Debuff Anchor"] = "Debuff Position",
-    ["Buff Spacing"] = "Buff Spacing",
-    ["Debuff Spacing"] = "Debuff Spacing",
-    ["Use Custom Position"] = "Use Custom Position",
-    ["Tooltip Custom Position"] = "Enable custom positioning to manually control icon placement. When disabled, Blizzard's default layout is used.",
 
     -- Anchor Points
     ["TOPLEFT"] = "Top Left",
@@ -260,7 +211,7 @@ LOCALES["koKR"] = {
 
     -- Module Descriptions
     ["Unit Frames Desc"] = "플레이어/대상/주시대상 버프/디버프 필터",
-    ["Raid Frames Desc"] = "파티 버프/디버프 + 쿨다운 트래킹 + 적 시전 알림",
+    ["Raid Frames Desc"] = "프레임 가시성, 사거리 투명도, 파티 스케일",
     ["Arena Frames Desc"] = "아레나 프레임 정렬 + 버프/디버프 필터",
     ["General Module Desc"] = "블리자드 프레임 위치 조정 (토템바, 드루이드 바)",
 
@@ -324,68 +275,19 @@ LOCALES["koKR"] = {
     ["No"] = "아니오",
 
     -- RaidFrames Config
-    ["Aura Display"] = "오라 표시",
-    ["Aura Display Desc"] = "레이드 프레임에 표시되는 버프/디버프 아이콘을 설정합니다.",
     ["Frame Settings"] = "프레임 설정",
     ["Hide Role Icon"] = "역할군 아이콘 숨김",
     ["Hide Name"] = "이름 숨김",
     ["Hide Aggro Overlay"] = "어그로 오버레이 숨김",
     ["Hide Party Title"] = "파티 제목 숨김",
+    ["Hide Dispel Overlay"] = "해제 오버레이 숨김",
     ["Range Settings"] = "사거리 설정",
     ["Range Fade"] = "사거리 투명도",
     ["Range Fade Min Opacity (%)"] = "최소 불투명도 (%)",
-    ["Buff Settings"] = "버프 설정",
-    ["Debuff Settings"] = "디버프 설정",
-    ["Timer Settings"] = "타이머 설정",
-    ["Buff Icon Size"] = "버프 아이콘 크기",
-    ["Debuff Icon Size"] = "디버프 아이콘 크기",
-    ["Hide Dispel Overlay"] = "해제 오버레이 숨김",
-    ["Hide Dispel Border"] = "해제 테두리 숨김",
-    ["Dispel Border Size"] = "해제 테두리 크기",
-    ["Show Duration Timer"] = "남은 시간 표시",
-    ["Expiring Border Size"] = "만료 경고 테두리 크기",
-    ["Timer Font Size"] = "타이머 폰트 크기",
-    ["Expiring Warning (%)"] = "만료 경고 (%)",
-    ["Actions"] = "동작",
-    ["Preview Mode"] = "미리보기 모드",
     ["Reset to Defaults"] = "기본값으로 초기화",
-    ["Preview Not Available"] = "미리보기 기능이 아직 준비되지 않았습니다",
-    ["Settings Reset"] = "레이드 프레임 설정이 기본값으로 초기화되었습니다",
     ["Reset Confirm"] = "레이드 프레임 설정을 기본값으로 초기화할까요?",
     ["Reset"] = "초기화",
     ["Cancel"] = "취소",
-
-    -- RaidFrames Tooltips
-    ["Tooltip Buff Size"] = "레이드 프레임에 표시되는 버프 아이콘의 크기입니다.",
-    ["Tooltip Debuff Size"] = "레이드 프레임에 표시되는 디버프 아이콘의 크기입니다.",
-    ["Tooltip Hide Dispel Overlay"] = "해제 가능한 디버프가 있을 때 파티/레이드 프레임에 표시되는 오버레이를 숨깁니다.",
-    ["Tooltip Hide Dispel Border"] = "디버프 종류를 나타내는 색상 테두리를 숨깁니다 (마법=파랑, 질병=갈색, 독=초록, 저주=보라). 체크 해제 시 테두리가 크고 선명하게 표시됩니다.",
-    ["Tooltip Show Timer"] = "오라 아이콘에 남은 시간을 표시합니다.",
-    ["Tooltip Expiring Warning"] = "남은 시간이 이 비율 미만일 때 빨간 테두리 경고를 표시합니다.",
-
-    -- Tracked Spells
-    ["Tracked Spells"] = "추적할 주문",
-    ["Tracked Spells Desc"] = "지속시간이 임계값 미만으로 떨어지면 깜빡이는 테두리를 표시할 주문입니다.",
-    ["Add Spell ID"] = "주문 ID 추가",
-    ["Enter Spell ID"] = "주문 ID 입력...",
-    ["Add"] = "추가",
-    ["Remove"] = "제거",
-    ["No Tracked Spells"] = "추적 중인 주문이 없습니다. 위에서 주문 ID를 추가하세요.",
-
-    -- RaidFrames Tab/Category Names
-    ["Buff Icon Settings"] = "버프 아이콘 설정",
-
-    -- RaidFrames Layout Settings
-    ["Max Buffs"] = "버프 총 개수",
-    ["Max Debuffs"] = "디버프 총 개수",
-    ["Buffs Per Row"] = "행당 버프 개수",
-    ["Debuffs Per Row"] = "행당 디버프 개수",
-    ["Buff Anchor"] = "버프 위치",
-    ["Debuff Anchor"] = "디버프 위치",
-    ["Buff Spacing"] = "버프 간격",
-    ["Debuff Spacing"] = "디버프 간격",
-    ["Use Custom Position"] = "커스텀 위치 사용",
-    ["Tooltip Custom Position"] = "커스텀 위치 설정을 활성화하면 아이콘 위치를 수동으로 제어할 수 있습니다. 비활성화 시 블리자드 기본 레이아웃이 사용됩니다.",
 
     -- Anchor Points
     ["TOPLEFT"] = "좌측 상단",
