@@ -64,33 +64,61 @@ end
 
 
 -- Frame visibility -------------------------------------------------------
-local function SetAlphaIfChanged(region, target)
+-- Blizzard 가 RoleIcon/Name/AggroHighlight 등을 자체 갱신 경로에서 Show() / SetAlpha(1)
+-- 으로 되돌리는 경우가 있어 SetAlpha(0) 만으로는 숨김이 풀림. Hide() + OnShow 훅
+-- 으로 강제 (region 내부 visibility 토글이라 frame mutate / secret value 접근 없음).
+local function ForceHide(region, marker)
     if not region then return end
     pcall(function()
-        if region:GetAlpha() ~= target then
-            region:SetAlpha(target)
+        if not region[marker] then
+            region:SetScript("OnShow", function(self) self:Hide() end)
+            region[marker] = true
         end
+        region:Hide()
     end)
+end
+
+local function ForceShow(region, marker)
+    if not region then return end
+    pcall(function()
+        if region[marker] then
+            region:SetScript("OnShow", nil)
+            region[marker] = nil
+        end
+        region:Show()
+    end)
+end
+
+local function ApplyToggle(region, hide, marker)
+    if hide then
+        ForceHide(region, marker)
+    else
+        ForceShow(region, marker)
+    end
 end
 
 local function ApplyFrameVisibility(frame, settings)
     if InCombatLockdown() then return end
     if not frame or not settings then return end
 
-    SetAlphaIfChanged(frame.roleIcon, settings.HideRoleIcon and 0 or 1)
-    SetAlphaIfChanged(frame.name, settings.HideName and 0 or 1)
-    SetAlphaIfChanged(frame.aggroHighlight, settings.HideAggroBorder and 0 or 1)
+    ApplyToggle(frame.roleIcon, settings.HideRoleIcon, "OculusHideHook")
+    ApplyToggle(frame.name, settings.HideName, "OculusHideHook")
+    ApplyToggle(frame.aggroHighlight, settings.HideAggroBorder, "OculusHideHook")
 
     if settings.HidePartyTitle then
-        SetAlphaIfChanged(_G["CompactPartyFrameTitle"], 0)
+        ForceHide(_G["CompactPartyFrameTitle"], "OculusHideHook")
         for i = 1, 8 do
-            SetAlphaIfChanged(_G["CompactRaidGroup" .. i .. "Title"], 0)
+            ForceHide(_G["CompactRaidGroup" .. i .. "Title"], "OculusHideHook")
+        end
+    else
+        ForceShow(_G["CompactPartyFrameTitle"], "OculusHideHook")
+        for i = 1, 8 do
+            ForceShow(_G["CompactRaidGroup" .. i .. "Title"], "OculusHideHook")
         end
     end
 
-    if settings.HideDispelOverlay and frame.DispelOverlay
-        and not frame.DispelOverlay:IsForbidden() then
-        SetAlphaIfChanged(frame.DispelOverlay, 0)
+    if frame.DispelOverlay and not frame.DispelOverlay:IsForbidden() then
+        ApplyToggle(frame.DispelOverlay, settings.HideDispelOverlay, "OculusHideHook")
     end
 end
 
