@@ -111,6 +111,7 @@ LOCALES["enUS"] = {
 
     -- RaidFrames Config
     ["Frame Settings"] = "Frame Settings",
+    ["Party Frame Scale (%)"] = "Party Frame Scale (%)",
     ["Hide Role Icon"] = "Hide Role Icon",
     ["Hide Name"] = "Hide Name",
     ["Hide Aggro Overlay"] = "Hide Aggro Overlay",
@@ -123,6 +124,38 @@ LOCALES["enUS"] = {
     ["Reset Confirm"] = "Reset RaidFrames settings to defaults?",
     ["Reset"] = "Reset",
     ["Cancel"] = "Cancel",
+
+    -- AuraPanel General
+    ["AuraPanel General"] = "Aura Panel - General",
+    ["Enable Custom Aura Panel"] = "Enable Custom Aura Panel",
+    ["Hide Blizzard Default Debuffs"] = "Hide Blizzard Default Debuffs",
+    ["Hide Blizzard Default Buffs"] = "Hide Blizzard Default Buffs",
+
+    -- AuraPanel Debuff Filters
+    ["Debuff Filters"] = "Debuff Filters",
+    ["Show All Debuffs (ignore filters below)"] = "Show All Debuffs (ignore filters below)",
+    ["Raid Debuffs (HARMFUL|RAID)"] = "Raid Debuffs (HARMFUL|RAID)",
+    ["Raid In Combat"] = "Raid In Combat",
+    ["Crowd Control (CC)"] = "Crowd Control (CC)",
+    ["Important (12.0.1+)"] = "Important (12.0.1+)",
+    ["Player Dispellable"] = "Player Dispellable",
+    ["Max Debuff Count"] = "Max Debuff Count",
+    ["Debuff Size (Normal)"] = "Debuff Size (Normal)",
+    ["Debuff Size (CC) - 강조용"] = "Debuff Size (CC - emphasized)",
+    ["Debuff Spacing"] = "Debuff Spacing",
+
+    -- AuraPanel Buff Filters
+    ["Buff Filters"] = "Buff Filters",
+    ["Show All Buffs (ignore filters below)"] = "Show All Buffs (ignore filters below)",
+    ["Only My Buffs"] = "Only My Buffs",
+    ["Raid Buffs (HELPFUL|RAID)"] = "Raid Buffs (HELPFUL|RAID)",
+    ["Cancelable"] = "Cancelable",
+    ["Important"] = "Important",
+    ["Big Defensive Cooldown"] = "Big Defensive Cooldown",
+    ["External Defensive"] = "External Defensive",
+    ["Max Buff Count"] = "Max Buff Count",
+    ["Buff Size"] = "Buff Size",
+    ["Buff Spacing"] = "Buff Spacing",
 
     -- Anchor Points
     ["TOPLEFT"] = "Top Left",
@@ -276,6 +309,7 @@ LOCALES["koKR"] = {
 
     -- RaidFrames Config
     ["Frame Settings"] = "프레임 설정",
+    ["Party Frame Scale (%)"] = "파티 프레임 크기 (%)",
     ["Hide Role Icon"] = "역할군 아이콘 숨김",
     ["Hide Name"] = "이름 숨김",
     ["Hide Aggro Overlay"] = "어그로 오버레이 숨김",
@@ -288,6 +322,38 @@ LOCALES["koKR"] = {
     ["Reset Confirm"] = "레이드 프레임 설정을 기본값으로 초기화할까요?",
     ["Reset"] = "초기화",
     ["Cancel"] = "취소",
+
+    -- AuraPanel General
+    ["AuraPanel General"] = "오라 패널 - 일반",
+    ["Enable Custom Aura Panel"] = "자체 오라 패널 사용",
+    ["Hide Blizzard Default Debuffs"] = "Blizzard 기본 디버프 숨김",
+    ["Hide Blizzard Default Buffs"] = "Blizzard 기본 버프 숨김",
+
+    -- AuraPanel Debuff Filters
+    ["Debuff Filters"] = "디버프 필터",
+    ["Show All Debuffs (ignore filters below)"] = "모든 디버프 표시 (아래 필터 무시)",
+    ["Raid Debuffs (HARMFUL|RAID)"] = "레이드 디버프 (HARMFUL|RAID)",
+    ["Raid In Combat"] = "레이드 - 전투 중",
+    ["Crowd Control (CC)"] = "군중 제어 (CC)",
+    ["Important (12.0.1+)"] = "중요 디버프 (12.0.1+)",
+    ["Player Dispellable"] = "내가 해제 가능",
+    ["Max Debuff Count"] = "최대 디버프 개수",
+    ["Debuff Size (Normal)"] = "디버프 크기 (일반)",
+    ["Debuff Size (CC) - 강조용"] = "디버프 크기 (CC 강조용)",
+    ["Debuff Spacing"] = "디버프 간격",
+
+    -- AuraPanel Buff Filters
+    ["Buff Filters"] = "버프 필터",
+    ["Show All Buffs (ignore filters below)"] = "모든 버프 표시 (아래 필터 무시)",
+    ["Only My Buffs"] = "내가 건 버프만",
+    ["Raid Buffs (HELPFUL|RAID)"] = "레이드 버프 (HELPFUL|RAID)",
+    ["Cancelable"] = "해제 가능 (우클릭)",
+    ["Important"] = "중요",
+    ["Big Defensive Cooldown"] = "큰 방어 쿨다운",
+    ["External Defensive"] = "외부 방어 쿨다운",
+    ["Max Buff Count"] = "최대 버프 개수",
+    ["Buff Size"] = "버프 크기",
+    ["Buff Spacing"] = "버프 간격",
 
     -- Anchor Points
     ["TOPLEFT"] = "좌측 상단",

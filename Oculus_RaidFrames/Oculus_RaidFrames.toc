@@ -1,13 +1,15 @@
 ## Interface: 120005
 ## Title: Oculus - RaidFrames
-## Notes: Raid/Party frame visibility, range fade, party scale
+## Notes: Raid/Party frame visibility, range fade, scale + custom aura overlay
 ## Author: RAVIT
-## Version: 0.3.0
+## Version: 0.4.0
 ## Dependencies: Oculus
 ## SavedVariables: OculusRaidFramesStorage
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
 RaidFrames.lua
 Auras.lua
+AuraPanel.lua
 ConfigFrameTab.lua
+ConfigAuraPanelTab.lua
 Config.lua

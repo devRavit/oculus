@@ -90,6 +90,8 @@ end
 local function BuildConfig()
     local fullStorage = GetFullStorage() or {}
     config.Frame = DeepMerge(fullStorage.Frame or {}, DEFAULTS.Frame)
+    -- AuraPanel: storage 가 RaidFrames.lua DEFAULTS 와 이미 머지됨 (GetStorage 에서)
+    config.AuraPanel = fullStorage.AuraPanel
     return config
 end
 
@@ -397,6 +399,11 @@ local function RefreshControls()
         end)
     end
 
+    -- AuraPanel 섹션
+    if addon.ConfigAuraPanelTab and addon.ConfigAuraPanelTab.Refresh then
+        addon.ConfigAuraPanelTab:Refresh(controls, configuration)
+    end
+
     isInitializing = false
 end
 
@@ -445,6 +452,9 @@ local function PopulateSettingsPanel()
     cumulativeY = 0
     if addon.ConfigFrameTab then
         addon.ConfigFrameTab:Populate(scrollChild, controls, helpers)
+    end
+    if addon.ConfigAuraPanelTab then
+        addon.ConfigAuraPanelTab:Populate(scrollChild, controls, helpers)
     end
     scrollChild:SetHeight(-cumulativeY + 30)
 

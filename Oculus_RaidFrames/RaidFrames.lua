@@ -38,6 +38,54 @@ local DEFAULTS = {
             MinAlpha = 0.55, -- 사거리 밖일 때 최소 불투명도 (0.0 ~ 1.0)
         },
     },
+
+    -- 자체 buff/debuff overlay 패널 (Blizzard 기본 버프/디버프 표시 자리에 우리가 그림)
+    -- 12.0.5 PrivateAura 시스템은 forbidden scope 라 직접 만질 수 없음.
+    -- AuraUtil.ForEachAura + Blizzard 빌트인 필터 (CrowdControl, RaidInCombat, Important 등) 활용.
+    AuraPanel = {
+        Enabled = true,
+
+        Debuff = {
+            ShowAll        = true,   -- 모든 디버프 표시 (true 면 아래 sub-filter 무시)
+            -- Sub-filters (ShowAll = false 일 때만 적용, Blizzard AuraUtil.AuraFilters 매핑)
+            FilterRaid          = true,   -- HARMFUL|RAID
+            FilterRaidInCombat  = true,   -- HARMFUL|RAID_IN_COMBAT
+            FilterCrowdControl  = true,   -- HARMFUL|CROWD_CONTROL
+            FilterImportant     = true,   -- HARMFUL|IMPORTANT (12.0.1+)
+            FilterDispellable   = false,  -- HARMFUL|RAID_PLAYER_DISPELLABLE
+            -- 표시 옵션
+            MaxCount        = 5,
+            NormalSize      = 22,
+            CCSize          = 32,    -- CC 디버프 강조용 별도 사이즈
+            Spacing         = 2,
+            Anchor          = "BOTTOMRIGHT",
+            Growth          = "LEFT",  -- LEFT / RIGHT
+            ShowCooldown    = true,
+            ShowStack       = true,
+        },
+
+        Buff = {
+            ShowAll       = false,
+            OnlyMine      = true,
+            FilterRaid              = false,  -- HELPFUL|RAID
+            FilterRaidInCombat      = true,   -- HELPFUL|RAID_IN_COMBAT
+            FilterCancelable        = false,  -- HELPFUL|CANCELABLE
+            FilterImportant         = true,   -- HELPFUL|IMPORTANT
+            FilterBigDefensive      = true,   -- HELPFUL|BIG_DEFENSIVE
+            FilterExternalDefensive = true,   -- HELPFUL|EXTERNAL_DEFENSIVE
+            MaxCount        = 3,
+            Size            = 18,
+            Spacing         = 2,
+            Anchor          = "BOTTOMLEFT",
+            Growth          = "RIGHT",
+            ShowCooldown    = true,
+            ShowStack       = true,
+        },
+
+        -- Blizzard 기본 표시 숨길지 (우리 패널과 겹치므로 기본 ON)
+        HideBlizzardDebuffs = true,
+        HideBlizzardBuffs   = true,
+    },
 }
 
 -- Expose defaults for Config reset
@@ -96,6 +144,10 @@ function RaidFrames:Enable()
         addon.Auras:Enable()
     end
 
+    if addon.AuraPanel and self.Storage.AuraPanel and self.Storage.AuraPanel.Enabled then
+        addon.AuraPanel:Enable()
+    end
+
     if Oculus and Oculus.Logger then
         Oculus.Logger:Log("RaidFrames", nil, "Module enabled")
     end
@@ -108,6 +160,10 @@ function RaidFrames:Disable()
 
     if addon.Auras then
         addon.Auras:Disable()
+    end
+
+    if addon.AuraPanel then
+        addon.AuraPanel:Disable()
     end
 
     self.IsEnabled = false

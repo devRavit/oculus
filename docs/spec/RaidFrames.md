@@ -2,13 +2,14 @@
 
 ## 역할
 
-파티/레이드 CompactUnitFrame 의 가시성 토글, 파티 프레임 스케일, 사거리 투명도 처리.
+파티/레이드 CompactUnitFrame 의 가시성 토글, 파티 프레임 스케일, 사거리 투명도 처리,
+**자체 buff/debuff overlay 패널** (AuraUtil 빌트인 필터 활용, taint-free).
 
-> **12.0.5 PrivateAura 도입 이후**: 버프/디버프 표시는 PrivateAura 시스템으로 통합되었고
-> 해당 anchor 와 button template 은 forbidden scope. 애드온이 `CompactUnitFrame_SetMaxBuffs`
-> / `SetAuraSize` / 개별 버튼 조작을 시도하면 frame taint 또는 ADDON_ACTION_BLOCKED 가 발생.
-> 그래서 본 모듈은 **버프/디버프 커스터마이징 기능을 제공하지 않음** — 가시성 토글, 사거리
-> 투명도, 파티 스케일 등 child region 알파/secret-safe API 만 사용하는 기능에 한정.
+> **12.0.5 PrivateAura 도입 이후**: Blizzard 의 buff/debuff 버튼은 forbidden scope 로 이동했고
+> `SetMaxBuffs` / `SetAuraSize` 호출 시 frame taint / ADDON_ACTION_BLOCKED 발생. 따라서 본 모듈은
+> Blizzard 의 기본 표시는 CVar / optionTable 로 숨기고, **자체 frame 으로 같은 자리에 overlay**
+> 를 그림. 데이터는 `AuraUtil.ForEachAura` + `AuraUtil.AuraFilters` (CrowdControl/RaidInCombat
+> /Important/BigDefensive 등 Blizzard 빌트인) 으로 안전하게 수집.
 
 ## 기능
 
@@ -27,6 +28,15 @@
 - `frame:SetAlphaFromBoolean(UnitInRange(unit), 1.0, MinAlpha)` — 12.0 secret boolean 안전 API
 - 최소 불투명도 슬라이더로 사거리 밖 알파값 조정
 
+### 4. 자체 Aura Panel (buff/debuff overlay)
+- Blizzard 의 PrivateAura 시스템과 별개로 우리 frame 을 각 raid frame 멤버 위에 overlay
+- 데이터: `AuraUtil.ForEachAura(unit, filter, max, cb)` (12.0.5 공식)
+- 필터: `AuraUtil.AuraFilters` (CrowdControl, RaidInCombat, Important, BigDefensive,
+  ExternalDefensive 등 Blizzard 빌트인) → spell ID 리스트 유지 불필요
+- CC 디버프는 별도 사이즈 (강조)
+- Blizzard 기본 표시 숨김: `SetCVar("raidFramesDisplayDebuffs", "0")` + `frame.optionTable.displayBuffs = false`
+- 모든 필터는 사용자 ON/OFF 가능
+
 ## 설정 옵션
 
 ```lua
@@ -39,9 +49,31 @@ OculusRaidFramesStorage = {
         HideAggroBorder = false,
         HidePartyTitle = false,
         HideDispelOverlay = false,
-        RangeFade = {
-            Enabled = true,
-            MinAlpha = 0.55,
+        RangeFade = { Enabled = true, MinAlpha = 0.55 },
+    },
+    AuraPanel = {
+        Enabled = true,
+        HideBlizzardDebuffs = true,
+        HideBlizzardBuffs = true,
+        Debuff = {
+            ShowAll = true,
+            FilterRaid = true,
+            FilterRaidInCombat = true,
+            FilterCrowdControl = true,
+            FilterImportant = true,
+            FilterDispellable = false,
+            MaxCount = 5, NormalSize = 22, CCSize = 32, Spacing = 2,
+            Anchor = "BOTTOMRIGHT", Growth = "LEFT",
+            ShowCooldown = true, ShowStack = true,
+        },
+        Buff = {
+            ShowAll = false, OnlyMine = true,
+            FilterRaid = false, FilterRaidInCombat = true,
+            FilterCancelable = false, FilterImportant = true,
+            FilterBigDefensive = true, FilterExternalDefensive = true,
+            MaxCount = 3, Size = 18, Spacing = 2,
+            Anchor = "BOTTOMLEFT", Growth = "RIGHT",
+            ShowCooldown = true, ShowStack = true,
         },
     },
 }
@@ -62,10 +94,12 @@ ESC > 인터페이스 > 애드온 > Oculus > Raid Frames
 ```
 Oculus_RaidFrames/
 ├── Oculus_RaidFrames.toc
-├── RaidFrames.lua        -- 모듈 초기화, 스토리지, Auras 서브모듈 enable/disable
-├── Auras.lua             -- 가시성/스케일/사거리 페이드 로직 (visibility/scale/rangefade)
-├── Config.lua            -- 설정 패널 생성, 컨트롤 위젯 헬퍼
-└── ConfigFrameTab.lua    -- Frame Settings UI
+├── RaidFrames.lua          -- 모듈 초기화, 스토리지, 서브모듈 enable/disable
+├── Auras.lua               -- 가시성/스케일/사거리 페이드
+├── AuraPanel.lua           -- 자체 buff/debuff overlay 패널 (AuraUtil 기반)
+├── Config.lua              -- 설정 패널 생성, 컨트롤 위젯 헬퍼
+├── ConfigFrameTab.lua      -- Frame Settings UI
+└── ConfigAuraPanelTab.lua  -- AuraPanel Settings UI (필터 ON/OFF, 사이즈 등)
 ```
 
 ## 기술 구현 메모
