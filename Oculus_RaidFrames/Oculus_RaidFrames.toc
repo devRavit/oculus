@@ -1,16 +1,13 @@
 ## Interface: 120005
 ## Title: Oculus - RaidFrames
-## Notes: Raid/Party Frame Enhancements
+## Notes: Raid/Party frame visibility, range fade, party scale
 ## Author: RAVIT
-## Version: 0.2.6
+## Version: 0.3.0
 ## Dependencies: Oculus
-## OptionalDeps: Masque
 ## SavedVariables: OculusRaidFramesStorage
 ## IconTexture: Interface\Icons\INV_Misc_Eye_01
 
 RaidFrames.lua
 Auras.lua
 ConfigFrameTab.lua
-ConfigBuffTab.lua
-ConfigDebuffTab.lua
 Config.lua
